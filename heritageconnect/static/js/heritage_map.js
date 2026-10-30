@@ -129,6 +129,60 @@ function setStatus(message) {
 }
 
 
+/*
+ * Escape text before inserting it into HTML.
+ * Artisan details are typed by users, so without this a name like
+ * <img src=x onerror=alert(1)> would run as code (stored XSS).
+ */
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+
+/*
+ * Turn a Django REST Framework error response into readable text.
+ * e.g. {"phone": ["Phone may only contain..."]} -> "phone: Phone may only contain..."
+ */
+function formatApiErrors(data) {
+    if (!data || typeof data !== "object") {
+        return "";
+    }
+
+    if (data.error) {
+        return data.error;
+    }
+
+    if (data.detail) {
+        return data.detail;
+    }
+
+    const source = data.properties || data;
+
+    return Object.entries(source)
+        .map(([field, messages]) => {
+            const text = Array.isArray(messages)
+                ? messages.join(" ")
+                : typeof messages === "object"
+                    ? formatApiErrors(messages)
+                    : String(messages);
+
+            return field === "non_field_errors"
+                ? text
+                : `${field.replace(/_/g, " ")}: ${text}`;
+        })
+        .join(" ");
+}
+
+
 function getCookie(name) {
     let cookieValue = null;
 
@@ -185,31 +239,31 @@ function createArtisanPopup(feature) {
         feature.properties;
 
     return `
-        <h5>${properties.name}</h5>
+        <h5>${escapeHtml(properties.name)}</h5>
 
         <p>
             <strong>Artisan:</strong>
-            ${properties.artisan_name}
+            ${escapeHtml(properties.artisan_name)}
         </p>
 
         <p>
             <strong>Craft:</strong>
-            ${properties.craft_type_display}
+            ${escapeHtml(properties.craft_type_display)}
         </p>
 
         <p>
             <strong>Address:</strong>
-            ${properties.address}
+            ${escapeHtml(properties.address)}
         </p>
 
         <p>
             <strong>Region:</strong>
-            ${properties.region_name || "None"}
+            ${escapeHtml(properties.region_name || "None")}
         </p>
 
         <p>
             <strong>Hours:</strong>
-            ${properties.opening_hours || "Not available"}
+            ${escapeHtml(properties.opening_hours || "Not available")}
         </p>
     `;
 }
@@ -325,31 +379,31 @@ function updateResults(features) {
 
         result.innerHTML = `
             <div class="result-category">
-                ${properties.craft_type_display}
+                ${escapeHtml(properties.craft_type_display)}
             </div>
 
             <h6>
-                ${properties.name}
+                ${escapeHtml(properties.name)}
             </h6>
 
             <p class="artisan-name">
-                ${properties.artisan_name}
+                ${escapeHtml(properties.artisan_name)}
             </p>
 
             <p class="result-address">
-                ${properties.address}
+                ${escapeHtml(properties.address)}
             </p>
 
             <p class="result-description">
-                ${properties.description || ""}
+                ${escapeHtml(properties.description || "")}
             </p>
 
             <div class="result-footer">
 
                 <span>
                     ${
-                        properties.region_name ||
-                        "Independent artisan"
+                        escapeHtml(properties.region_name ||
+                        "Independent artisan")
                     }
                 </span>
 
@@ -521,15 +575,15 @@ async function loadRegions() {
                     ) {
                         layer.bindPopup(`
                             <h5>
-                                ${feature.properties.name}
+                                ${escapeHtml(feature.properties.name)}
                             </h5>
 
                             <p>
-                                ${feature.properties.region_type}
+                                ${escapeHtml(feature.properties.region_type)}
                             </p>
 
                             <p>
-                                ${feature.properties.description}
+                                ${escapeHtml(feature.properties.description)}
                             </p>
                         `);
 
@@ -597,15 +651,15 @@ async function loadRoutes() {
                     ) {
                         layer.bindPopup(`
                             <h5>
-                                ${feature.properties.name}
+                                ${escapeHtml(feature.properties.name)}
                             </h5>
 
                             <p>
-                                ${feature.properties.route_type_display}
+                                ${escapeHtml(feature.properties.route_type_display)}
                             </p>
 
                             <p>
-                                ${feature.properties.description}
+                                ${escapeHtml(feature.properties.description)}
                             </p>
 
                             <p>
@@ -614,8 +668,8 @@ async function loadRoutes() {
                                 </strong>
 
                                 ${
-                                    feature.properties.distance_km ||
-                                    "N/A"
+                                    escapeHtml(feature.properties.distance_km ||
+                                    "N/A")
                                 } km
                             </p>
                         `);
@@ -1836,6 +1890,7 @@ async function saveArtisan(
             );
 
             throw new Error(
+                formatApiErrors(data) ||
                 "Unable to save artisan. Check the form values."
             );
         }
