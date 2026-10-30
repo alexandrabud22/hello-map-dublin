@@ -1,9 +1,19 @@
 const map = L.map("map").setView([53.3498, -6.2603], 13);
 
+/*
+ * OpenStreetMap tiles (required tile provider for the assignment).
+ * The attribution is required by the OSM tile usage policy.
+ */
+const OSM_TILE_URL =
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+const OSM_ATTRIBUTION =
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    OSM_TILE_URL,
     {
-        attribution: "Tiles &copy; Esri",
+        attribution: OSM_ATTRIBUTION,
         maxZoom: 19
     }
 ).addTo(map);
@@ -1274,10 +1284,10 @@ function initialiseArtisanLocationMap() {
             );
 
         L.tileLayer(
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+            OSM_TILE_URL,
             {
                 attribution:
-                    "Tiles &copy; Esri",
+                    OSM_ATTRIBUTION,
 
                 maxZoom: 19
             }

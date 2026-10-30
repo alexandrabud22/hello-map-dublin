@@ -1,5 +1,16 @@
+# Secrets
 .env
+
+# Python
 __pycache__/
 *.py[cod]
+
+# Django
 staticfiles/
+
+# macOS
 .DS_Store
+
+# Old Week 3/4 lab screenshots (not part of the HeritageConnect submission)
+/[0-9][0-9]-*.png
+/screenshots/
