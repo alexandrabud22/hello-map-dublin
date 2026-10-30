@@ -1,8 +1,12 @@
 # HeritageConnect - local containerised deployment
 #
-# Services:  db (PostGIS) | pgadmin (PgAdmin4) | web (Django)
+# Services:  nginx (reverse proxy)  -> web (Gunicorn + Django)  -> db (PostGIS)
+#            pgadmin (PgAdmin4 database admin)
 # Network:   heritage_net - isolated bridge network on a custom subnet
 # Volumes:   postgis_data, pgadmin_data - data survives restarts
+#            static_data - collected static files shared web -> nginx
+#
+# Public ports on the host: 8000 (Nginx) and 5050 (PgAdmin) only.
 #
 # All settings come from the .env file (see .env.example).
 
@@ -50,11 +54,16 @@ services:
     build: .
     container_name: heritage_web
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
+    # Start-up (migrate, collectstatic, gunicorn) is handled by
+    # docker/entrypoint.sh - see the Dockerfile ENTRYPOINT.
     volumes:
+      # Source code mounted for development (edits apply without rebuild)
       - .:/app
-    ports:
-      - "8000:8000"
+      # Collected static files, shared with Nginx
+      - static_data:/app/staticfiles
+    # Gunicorn is NOT published to the host - only Nginx can reach it.
+    expose:
+      - "8000"
     environment:
       DATABASE_NAME: ${POSTGRES_DB}
       DATABASE_USER: ${POSTGRES_USER}
@@ -62,12 +71,39 @@ services:
       DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_PORT: ${DATABASE_PORT}
       SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DEBUG: ${DJANGO_DEBUG}
+      DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     networks:
       heritage_net:
         ipv4_address: 172.28.0.30
     depends_on:
       db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/heritage/', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 5
+      start_period: 30s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: heritage_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Project static files (served first, read-only)
+      - ./static:/srv/src/static:ro
+      # Collected static files from the web container (admin, DRF, etc.)
+      - static_data:/srv/collected/static:ro
+    networks:
+      heritage_net:
+        ipv4_address: 172.28.0.40
+    depends_on:
+      web:
         condition: service_healthy
 
 networks:
@@ -82,3 +118,4 @@ networks:
 volumes:
   postgis_data:
   pgadmin_data:
+  static_data:

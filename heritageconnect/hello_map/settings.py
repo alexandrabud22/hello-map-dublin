@@ -1,8 +1,9 @@
 """
-Django settings for hello_map project.
+Django settings for HeritageConnect (project package: hello_map).
 
-Week 4 - Django + Leaflet Integration
-CMPU4058 Advanced Web Mapping
+All secrets and environment-specific values are read from environment
+variables, which Docker Compose loads from the .env file.
+See .env.example for the full list.
 """
 
 import os
@@ -23,19 +24,28 @@ if not SECRET_KEY:
     )
 
 
+def env_list(name, default=""):
+    """Read a comma-separated environment variable as a list."""
+    return [
+        item.strip()
+        for item in os.getenv(name, default).split(",")
+        if item.strip()
+    ]
+
+
+# DEBUG is OFF unless explicitly turned on (safe default).
 DEBUG = (
-    os.getenv(
-        "DEBUG",
-        os.getenv("DJANGO_DEBUG", "True")
-    ).lower()
-    == "true"
+    os.getenv("DEBUG", os.getenv("DJANGO_DEBUG", "False")).lower()
+    in ("true", "1", "yes")
 )
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "0.0.0.0",
-]
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+
+# Origins allowed to send forms/API writes (needed behind Nginx on :8000).
+CSRF_TRUSTED_ORIGINS = env_list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    "http://localhost:8000,http://127.0.0.1:8000",
+)
 
 
 INSTALLED_APPS = [
@@ -167,7 +177,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
     ],
 
     "DEFAULT_PERMISSION_CLASSES": [
@@ -194,17 +203,80 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": (
         "drf_spectacular.openapi.AutoSchema"
     ),
+
+    # Rate limiting - protects the API from abuse / scraping.
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "120/minute",
+        "user": "300/minute",
+    },
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS: the front end is served from the same origin as the API, so no
+# cross-origin access is needed. Extra origins can be added via .env.
+CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOW_CREDENTIALS = False
 
-CORS_ALLOW_CREDENTIALS = True
+
+# =========================================================
+# Security settings
+# =========================================================
+
+# Browser-side protections (also reinforced by Nginx headers).
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+X_FRAME_OPTIONS = "DENY"
+
+# Session cookie cannot be read by JavaScript.
+SESSION_COOKIE_HTTPONLY = True
+# Note: CSRF_COOKIE_HTTPONLY stays False because heritage_map.js reads
+# the csrftoken cookie to send the X-CSRFToken header.
+
+SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 hours
+
+# Behind Nginx: trust X-Forwarded-Proto so Django knows if HTTPS was used.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Only enable these when the site is served over HTTPS
+# (set DJANGO_SECURE_COOKIES=True). Local Docker runs on plain HTTP.
+if os.getenv("DJANGO_SECURE_COOKIES", "False").lower() == "true":
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_SSL_REDIRECT = True
+
+
+# =========================================================
+# Logging - errors go to the container log
+# (view with: docker compose logs web)
+# =========================================================
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
 
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Cities API",
+    "TITLE": "HeritageConnect API",
     "DESCRIPTION": (
-        "RESTful API for city data with spatial capabilities"
+        "RESTful API for Dublin artisan locations, cultural regions "
+        "and heritage routes, with spatial queries (radius, nearest, "
+        "containment, intersection)."
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,

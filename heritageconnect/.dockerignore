@@ -1,0 +1,10 @@
+# Keep secrets, screenshots and build junk out of the Docker image
+.env
+.git
+**/__pycache__
+*.py[cod]
+staticfiles/
+*.png
+screenshots/
+documentation/
+.DS_Store
