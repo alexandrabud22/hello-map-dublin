@@ -1,0 +1,845 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>HeritageConnect</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/heritage_styles.css' %}"
+    >
+</head>
+
+
+<body>
+
+<!-- =========================================================
+     TOP NAVIGATION
+========================================================= -->
+
+<header class="topbar">
+
+    <div class="brand">
+        <div class="brand-mark">
+            ✦
+        </div>
+
+        <span>
+            HeritageConnect
+        </span>
+    </div>
+
+
+    <nav class="nav-links">
+
+        <a
+            href="#"
+            class="active"
+        >
+            Explore
+        </a>
+
+        <a href="#resultsPanel">
+            Artisans
+        </a>
+
+        <a href="#">
+            Heritage Routes
+        </a>
+
+        <a href="#">
+            About
+        </a>
+
+    </nav>
+
+
+    <div class="nav-user-area">
+
+        {% if user.is_authenticated %}
+
+            <span class="nav-username">
+                {{ user.username }}
+            </span>
+
+            <button
+                id="openAddArtisanBtn"
+                class="add-artisan-btn"
+                type="button"
+            >
+                + Add Artisan
+            </button>
+
+            <form
+                method="post"
+                action="{% url 'logout' %}"
+                class="logout-form"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="nav-auth-link nav-logout-btn"
+                >
+                    Logout
+                </button>
+            </form>
+
+        {% else %}
+
+            <!--
+                Keep this hidden element because the current
+                JavaScript expects openAddArtisanBtn to exist.
+                It is disabled and cannot be used.
+            -->
+            <button
+                id="openAddArtisanBtn"
+                type="button"
+                hidden
+                disabled
+            ></button>
+
+            <a
+                href="{% url 'login' %}"
+                class="nav-auth-link"
+            >
+                Login
+            </a>
+
+            <a
+                href="{% url 'register' %}"
+                class="nav-register-btn"
+            >
+                Register
+            </a>
+
+        {% endif %}
+
+    </div>
+
+</header>
+
+
+<!-- =========================================================
+     PAGE CONTENT
+========================================================= -->
+
+<main class="page-shell">
+
+
+    <!-- =====================================================
+         INTRO
+    ====================================================== -->
+
+    <section class="intro-section">
+
+        <div>
+
+            <div class="location-label">
+                DUBLIN, IRELAND
+            </div>
+
+            <h1>
+                Discover the hands behind the heritage.
+            </h1>
+
+        </div>
+
+
+        <p class="intro-copy">
+            Meet local makers, explore traditional crafts,
+            and discover cultural routes across Dublin.
+        </p>
+
+    </section>
+
+
+    <!-- =====================================================
+         FILTERS
+    ====================================================== -->
+
+    <section class="filters-panel">
+
+        <div class="filter search-filter">
+
+            <label for="searchInput">
+                Search
+            </label>
+
+            <input
+                id="searchInput"
+                type="text"
+                class="form-control"
+                placeholder="Search artisans, crafts or places"
+            >
+
+        </div>
+
+
+        <div class="filter">
+
+            <label for="craftFilter">
+                Craft category
+            </label>
+
+            <select
+                id="craftFilter"
+                class="form-select"
+            >
+
+                <option value="">
+                    All crafts
+                </option>
+
+                <option value="POTTERY">
+                    Pottery
+                </option>
+
+                <option value="WEAVING">
+                    Weaving
+                </option>
+
+                <option value="WOODCARVING">
+                    Woodcarving
+                </option>
+
+                <option value="TEXTILES">
+                    Traditional Textiles
+                </option>
+
+                <option value="JEWELLERY">
+                    Jewellery
+                </option>
+
+                <option value="LEATHER">
+                    Leatherwork
+                </option>
+
+                <option value="PAINTING">
+                    Traditional Painting
+                </option>
+
+                <option value="OTHER">
+                    Other
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="filter">
+
+            <label for="regionFilter">
+                Cultural region
+            </label>
+
+            <select
+                id="regionFilter"
+                class="form-select"
+            >
+
+                <option value="">
+                    All regions
+                </option>
+
+                <option value="1">
+                    Dublin Cultural Quarter
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="filter">
+
+            <label for="radiusSelect">
+                Search radius
+            </label>
+
+            <select
+                id="radiusSelect"
+                class="form-select"
+            >
+
+                <option value="1">
+                    Within 1 km
+                </option>
+
+                <option value="2">
+                    Within 2 km
+                </option>
+
+                <option
+                    value="3"
+                    selected
+                >
+                    Within 3 km
+                </option>
+
+                <option value="5">
+                    Within 5 km
+                </option>
+
+                <option value="10">
+                    Within 10 km
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="filter-actions">
+
+            <button
+                id="findNearbyBtn"
+                class="primary-action"
+                type="button"
+            >
+                Search Nearby
+            </button>
+
+
+            <button
+                id="findNearestBtn"
+                class="nearest-action"
+                type="button"
+            >
+                ◆ Find Nearest
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         MAP + RESULTS
+    ====================================================== -->
+
+    <section class="content-grid">
+
+
+        <!-- MAP -->
+
+        <div class="map-card">
+
+            <div id="map"></div>
+
+
+            <div
+                id="selectedLocationInfo"
+                class="selected-location-info"
+            >
+                Click anywhere on the map to choose a search location.
+            </div>
+
+
+            <div
+                id="mapStatus"
+                class="map-status"
+            >
+                Loading HeritageConnect...
+            </div>
+
+
+            <div class="map-legend">
+
+                <div class="legend-title">
+                    Map layers
+                </div>
+
+
+                <label class="layer-toggle">
+
+                    <input
+                        type="checkbox"
+                        id="toggleArtisans"
+                        checked
+                    >
+
+                    <span
+                        class="legend-dot artisan-dot"
+                    ></span>
+
+                    Artisans
+
+                </label>
+
+
+                <label class="layer-toggle">
+
+                    <input
+                        type="checkbox"
+                        id="toggleRegions"
+                        checked
+                    >
+
+                    <span
+                        class="legend-box"
+                    ></span>
+
+                    Cultural regions
+
+                </label>
+
+
+                <label class="layer-toggle">
+
+                    <input
+                        type="checkbox"
+                        id="toggleRoutes"
+                        checked
+                    >
+
+                    <span
+                        class="legend-line"
+                    ></span>
+
+                    Heritage routes
+
+                </label>
+
+            </div>
+
+
+            <button
+                id="resetBtn"
+                class="reset-map-btn"
+                type="button"
+            >
+                Reset map
+            </button>
+
+        </div>
+
+
+        <!-- RESULTS -->
+
+        <aside
+            class="results-panel"
+            id="resultsPanel"
+        >
+
+            <div class="results-header">
+
+                <div>
+
+                    <h2>
+                        Artisans nearby
+                    </h2>
+
+                    <p id="resultsSubtitle">
+                        Discover makers from your selected area.
+                    </p>
+
+                </div>
+
+
+                <span class="recommended-label">
+                    Recommended
+                </span>
+
+            </div>
+
+
+            <div id="results">
+
+                <p class="text-muted">
+                    Artisan results will appear here.
+                </p>
+
+            </div>
+
+        </aside>
+
+    </section>
+
+</main>
+
+
+<!-- =========================================================
+     ADD / EDIT ARTISAN MODAL
+========================================================= -->
+
+<div
+    id="artisanModal"
+    class="artisan-modal"
+>
+
+    <div class="artisan-modal-backdrop"></div>
+
+
+    <div class="artisan-modal-content">
+
+
+        <!-- MODAL HEADER -->
+
+        <div class="artisan-modal-header">
+
+            <div>
+
+                <span class="modal-eyebrow">
+                    ARTISAN LOCATION
+                </span>
+
+                <h2 id="artisanModalTitle">
+                    Add Artisan
+                </h2>
+
+            </div>
+
+
+            <button
+                id="closeArtisanModalBtn"
+                class="modal-close-btn"
+                type="button"
+                aria-label="Close"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <!-- =================================================
+             FORM
+        ================================================== -->
+
+        <form id="artisanForm">
+
+            {% csrf_token %}
+
+
+            <div class="modal-form-grid">
+
+
+                <!-- WORKSHOP NAME -->
+
+                <div class="form-field">
+
+                    <label for="artisanBusinessName">
+                        Workshop name
+                    </label>
+
+                    <input
+                        id="artisanBusinessName"
+                        type="text"
+                        required
+                        placeholder="e.g. Dublin Pottery Studio"
+                    >
+
+                </div>
+
+
+                <!-- ARTISAN NAME -->
+
+                <div class="form-field">
+
+                    <label for="artisanName">
+                        Artisan name
+                    </label>
+
+                    <input
+                        id="artisanName"
+                        type="text"
+                        required
+                        placeholder="e.g. Aoife Murphy"
+                    >
+
+                </div>
+
+
+                <!-- CRAFT -->
+
+                <div class="form-field">
+
+                    <label for="artisanCraftType">
+                        Craft type
+                    </label>
+
+                    <select
+                        id="artisanCraftType"
+                        required
+                    >
+
+                        <option value="">
+                            Select craft type
+                        </option>
+
+                        <option value="POTTERY">
+                            Pottery
+                        </option>
+
+                        <option value="WEAVING">
+                            Weaving
+                        </option>
+
+                        <option value="WOODCARVING">
+                            Woodcarving
+                        </option>
+
+                        <option value="TEXTILES">
+                            Traditional Textiles
+                        </option>
+
+                        <option value="JEWELLERY">
+                            Jewellery
+                        </option>
+
+                        <option value="LEATHER">
+                            Leatherwork
+                        </option>
+
+                        <option value="PAINTING">
+                            Traditional Painting
+                        </option>
+
+                        <option value="OTHER">
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- REGION -->
+
+                <div class="form-field">
+
+                    <label for="artisanRegion">
+                        Cultural region
+                    </label>
+
+                    <select id="artisanRegion">
+
+                        <option value="">
+                            No region
+                        </option>
+
+                        <option value="1">
+                            Dublin Cultural Quarter
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- ADDRESS -->
+
+                <div
+                    class="form-field form-field-full"
+                >
+
+                    <label for="artisanAddress">
+                        Address
+                    </label>
+
+                    <input
+                        id="artisanAddress"
+                        type="text"
+                        required
+                        placeholder="e.g. Temple Bar, Dublin"
+                    >
+
+                </div>
+
+
+                <!-- DESCRIPTION -->
+
+                <div
+                    class="form-field form-field-full"
+                >
+
+                    <label for="artisanDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="artisanDescription"
+                        rows="3"
+                        placeholder="Describe the artisan or traditional craft..."
+                    ></textarea>
+
+                </div>
+
+
+                <!-- OPENING HOURS -->
+
+                <div class="form-field">
+
+                    <label for="artisanOpeningHours">
+                        Opening hours
+                    </label>
+
+                    <input
+                        id="artisanOpeningHours"
+                        type="text"
+                        placeholder="e.g. 10:00 - 18:00"
+                    >
+
+                </div>
+
+
+                <!-- PHONE -->
+
+                <div class="form-field">
+
+                    <label for="artisanPhone">
+                        Phone
+                    </label>
+
+                    <input
+                        id="artisanPhone"
+                        type="text"
+                        placeholder="Optional"
+                    >
+
+                </div>
+
+
+                <!-- WEBSITE -->
+
+                <div
+                    class="form-field form-field-full"
+                >
+
+                    <label for="artisanWebsite">
+                        Website
+                    </label>
+
+                    <input
+                        id="artisanWebsite"
+                        type="url"
+                        placeholder="https://..."
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 ARTISAN LOCATION MAP
+            ============================================== -->
+
+            <div class="modal-location-section">
+
+
+                <div class="modal-location-header">
+
+                    <div>
+
+                        <strong>
+                            Artisan location
+                        </strong>
+
+                        <p>
+                            Enter an address above or click
+                            directly on the map to adjust
+                            the artisan's location.
+                        </p>
+
+                    </div>
+
+
+                    <div id="artisanLocationDisplay">
+                        No location selected
+                    </div>
+
+                </div>
+
+
+                <div id="artisanLocationMap"></div>
+
+            </div>
+
+
+            <!-- FORM STATUS -->
+
+            <div
+                id="artisanFormMessage"
+                class="artisan-form-message"
+            ></div>
+
+
+            <!-- ACTIONS -->
+
+            <div class="modal-actions">
+
+                <button
+                    id="cancelArtisanBtn"
+                    type="button"
+                    class="modal-secondary-btn"
+                >
+                    Cancel
+                </button>
+
+
+                <button
+                    id="saveArtisanBtn"
+                    type="submit"
+                    class="modal-primary-btn"
+                >
+                    Save Artisan
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     CURRENT USER DATA FOR JAVASCRIPT
+========================================================= -->
+
+<div
+    id="heritageUserData"
+    data-authenticated="{{ user.is_authenticated|yesno:'true,false' }}"
+    data-username="{{ user.username|escape }}"
+    hidden
+></div>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+></script>
+
+<script
+    src="{% static 'js/heritage_map.js' %}"
+></script>
+
+</body>
+
+</html>
