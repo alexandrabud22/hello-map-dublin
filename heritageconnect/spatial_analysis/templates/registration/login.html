@@ -1,0 +1,135 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Login | HeritageConnect
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/heritage_styles.css' %}"
+    >
+</head>
+
+<body>
+
+<div class="auth-page">
+
+    <div class="auth-card">
+
+        <a
+            href="{% url 'heritage-map' %}"
+            class="auth-logo"
+        >
+            ✦ HeritageConnect
+        </a>
+
+        <div class="auth-heading">
+
+            <span class="auth-eyebrow">
+                WELCOME BACK
+            </span>
+
+            <h1>
+                Sign in
+            </h1>
+
+            <p>
+                Sign in to add and manage your
+                artisan locations.
+            </p>
+
+        </div>
+
+
+        <form
+            method="post"
+            class="auth-form"
+        >
+
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+
+                <div class="auth-error">
+
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+
+            <div class="auth-field">
+
+                <label for="{{ form.username.id_for_label }}">
+                    Username
+                </label>
+
+                {{ form.username }}
+
+                {% for error in form.username.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+
+            </div>
+
+
+            <div class="auth-field">
+
+                <label for="{{ form.password.id_for_label }}">
+                    Password
+                </label>
+
+                {{ form.password }}
+
+                {% for error in form.password.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="auth-primary-btn"
+            >
+                Sign in
+            </button>
+
+        </form>
+
+
+        <p class="auth-footer">
+
+            Don't have an account?
+
+            <a href="{% url 'register' %}">
+                Create one
+            </a>
+
+        </p>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>
