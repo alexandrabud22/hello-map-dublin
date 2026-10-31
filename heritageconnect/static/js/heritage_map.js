@@ -39,6 +39,15 @@ const artisanLayer = L.layerGroup().addTo(map);
 const regionLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 
+// Holds the corridor drawn by the "artisans along this route" buffer query.
+const bufferLayer = L.layerGroup().addTo(map);
+
+const resultsSubtitle =
+    document.getElementById("resultsSubtitle");
+
+const DEFAULT_RESULTS_SUBTITLE =
+    "Discover makers from your selected area.";
+
 
 /* =========================================================
    APPLICATION STATE
@@ -390,6 +399,11 @@ function updateResults(features) {
         result.innerHTML = `
             <div class="result-category">
                 ${escapeHtml(properties.craft_type_display)}
+                ${
+                    properties.distance_to_route_m !== undefined
+                        ? `<span class="route-distance">· ${escapeHtml(properties.distance_to_route_m)} m from route</span>`
+                        : ""
+                }
             </div>
 
             <h6>
@@ -565,6 +579,8 @@ async function loadRegions() {
             data.features ||
             [];
 
+        populateRegionSelects(features);
+
         regionLayer.clearLayers();
 
         L.geoJSON(
@@ -682,6 +698,16 @@ async function loadRoutes() {
                                     "N/A")
                                 } km
                             </p>
+
+                            <div class="route-buffer-actions">
+                                <span>Artisans along this route:</span>
+                                <button type="button" class="route-buffer-btn"
+                                    data-route-id="${escapeHtml(feature.id)}"
+                                    data-distance="200">within 200 m</button>
+                                <button type="button" class="route-buffer-btn"
+                                    data-route-id="${escapeHtml(feature.id)}"
+                                    data-distance="500">within 500 m</button>
+                            </div>
                         `);
 
                         layer.on(
@@ -787,6 +813,8 @@ function applyFilters() {
 ========================================================= */
 
 async function filterByRegion() {
+    bufferLayer.clearLayers();
+
     const regionId =
         regionFilter.value;
 
@@ -2026,6 +2054,12 @@ async function deleteArtisan(
 ========================================================= */
 
 function resetMap() {
+    bufferLayer.clearLayers();
+
+    if (resultsSubtitle) {
+        resultsSubtitle.textContent = DEFAULT_RESULTS_SUBTITLE;
+    }
+
     searchInput.value =
         "";
 
@@ -2368,6 +2402,127 @@ document.addEventListener(
 /* =========================================================
    INITIALISE APPLICATION
 ========================================================= */
+
+/* =========================================================
+   REGION DROPDOWNS (filled from the API, not hard-coded)
+========================================================= */
+
+function populateRegionSelects(features) {
+    const sortedRegions = [...features].sort((a, b) =>
+        a.properties.name.localeCompare(b.properties.name)
+    );
+
+    const fillSelect = (select, firstLabel) => {
+        if (!select) {
+            return;
+        }
+
+        const previousValue = select.value;
+
+        select.innerHTML = "";
+        select.add(new Option(firstLabel, ""));
+
+        sortedRegions.forEach((feature) => {
+            // new Option() sets text safely (no HTML parsing).
+            select.add(
+                new Option(feature.properties.name, String(feature.id))
+            );
+        });
+
+        // Keep the user's choice if that region still exists.
+        if ([...select.options].some((o) => o.value === previousValue)) {
+            select.value = previousValue;
+        }
+    };
+
+    fillSelect(regionFilter, "All regions");
+    fillSelect(
+        document.getElementById("artisanRegion"),
+        "Detect from location"
+    );
+}
+
+
+/* =========================================================
+   BUFFER QUERY - ARTISANS ALONG A HERITAGE ROUTE
+========================================================= */
+
+async function showArtisansAlongRoute(routeId, distanceMetres) {
+    try {
+        setStatus("Finding artisans along the route...");
+
+        const response = await fetch(
+            `/api/heritage/routes/${encodeURIComponent(routeId)}/artisans_nearby/?distance=${encodeURIComponent(distanceMetres)}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                formatApiErrors(data) || "Unable to run the route search."
+            );
+        }
+
+        // Draw the buffer corridor around the route.
+        bufferLayer.clearLayers();
+
+        const corridor = L.geoJSON(data.buffer, {
+            style: {
+                color: "#b85f36",
+                weight: 1,
+                dashArray: "4, 4",
+                fillColor: "#b85f36",
+                fillOpacity: 0.08,
+            },
+            interactive: false,
+        }).addTo(bufferLayer);
+
+        const features = data.artisans?.features || [];
+
+        displayArtisans(features);
+
+        map.closePopup();
+        map.fitBounds(corridor.getBounds(), { padding: [30, 30] });
+
+        if (resultsSubtitle) {
+            resultsSubtitle.textContent =
+                `Within ${data.buffer_m} m of ${data.route.name}`;
+        }
+
+        setStatus(
+            `${data.count} artisan${data.count === 1 ? "" : "s"} within ` +
+            `${data.buffer_m} m of ${data.route.name}`
+        );
+    } catch (error) {
+        console.error(error);
+        setStatus(error.message);
+    }
+}
+
+
+// Route popups are created dynamically, so attach button handlers
+// each time a popup opens.
+map.on("popupopen", (event) => {
+    const popupElement = event.popup.getElement();
+
+    if (!popupElement) {
+        return;
+    }
+
+    popupElement
+        .querySelectorAll(".route-buffer-btn")
+        .forEach((button) => {
+            button.addEventListener("click", (clickEvent) => {
+                clickEvent.stopPropagation();
+
+                showArtisansAlongRoute(
+                    button.dataset.routeId,
+                    button.dataset.distance
+                );
+            });
+        });
+});
+
 
 async function initialiseMap() {
     await loadArtisans();

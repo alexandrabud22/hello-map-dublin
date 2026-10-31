@@ -6,11 +6,14 @@ HeritageConnect views (the "controller" layer of the MVC pattern).
   REST API endpoints (CRUD) plus custom spatial query endpoints.
 """
 
+import json
+
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
+from django.db import connection
 from django.shortcuts import redirect, render
 
 from rest_framework import status, viewsets
@@ -30,6 +33,10 @@ from .serializers import (
 # Largest search radius the API accepts. Keeps queries fast and
 # stops someone asking for "every artisan within 10,000 km".
 MAX_RADIUS_KM = 50
+
+# Limits for the route buffer query (metres).
+DEFAULT_BUFFER_M = 200
+MAX_BUFFER_M = 2000
 
 
 # =========================================================
@@ -301,5 +308,96 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
                 },
                 "count": len(serializer.data["features"]),
                 "routes": serializer.data,
+            }
+        )
+
+    @action(detail=True, methods=["get"])
+    def artisans_nearby(self, request, pk=None):
+        """
+        Spatial query 5 - BUFFER (ST_Buffer + ST_DWithin on geography).
+
+        Return artisans within `distance` metres of this route - i.e.
+        makers you could visit while walking the trail - plus the buffer
+        polygon itself so the map can draw the corridor.
+
+        Example:
+        /api/heritage/routes/1/artisans_nearby/?distance=200
+        """
+        route = self.get_object()
+
+        try:
+            if request.query_params.get("distance") in (None, ""):
+                distance_m = DEFAULT_BUFFER_M
+            else:
+                distance_m = get_float_param(
+                    request.query_params, "distance", 10, MAX_BUFFER_M
+                )
+        except InvalidParameter as error:
+            return bad_request(str(error))
+
+        artisan_table = ArtisanLocation._meta.db_table
+        route_table = HeritageRoute._meta.db_table
+
+        # Casting to ::geography makes PostGIS measure in metres on the
+        # Earth's surface instead of in degrees. Values are passed as
+        # query parameters (%s), never pasted into the SQL string, which
+        # prevents SQL injection.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT ST_AsGeoJSON(
+                    ST_Buffer(r.path::geography, %s)::geometry, 6
+                )
+                FROM {route_table} AS r
+                WHERE r.id = %s
+                """,
+                [distance_m, route.id],
+            )
+            buffer_geojson = json.loads(cursor.fetchone()[0])
+
+            cursor.execute(
+                f"""
+                SELECT a.id,
+                       ST_Distance(a.location::geography,
+                                   r.path::geography) AS distance_m
+                FROM {artisan_table} AS a
+                JOIN {route_table} AS r ON r.id = %s
+                WHERE ST_DWithin(a.location::geography,
+                                 r.path::geography, %s)
+                ORDER BY distance_m
+                """,
+                [route.id, distance_m],
+            )
+            rows = cursor.fetchall()
+
+        distances = {artisan_id: dist for artisan_id, dist in rows}
+        artisans_by_id = (
+            ArtisanLocation.objects
+            .select_related("region", "owner")
+            .in_bulk(distances.keys())
+        )
+        artisans = [artisans_by_id[artisan_id] for artisan_id, _ in rows]
+
+        serializer = ArtisanLocationSerializer(
+            artisans, many=True, context={"request": request}
+        )
+        features = serializer.data["features"]
+
+        for feature, artisan in zip(features, artisans):
+            feature["properties"]["distance_to_route_m"] = round(
+                distances[artisan.id]
+            )
+
+        return Response(
+            {
+                "route": {
+                    "id": route.id,
+                    "name": route.name,
+                    "distance_km": route.distance_km,
+                },
+                "buffer_m": distance_m,
+                "buffer": buffer_geojson,
+                "count": len(artisans),
+                "artisans": serializer.data,
             }
         )

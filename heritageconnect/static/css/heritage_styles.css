@@ -1610,3 +1610,49 @@ body {
 .nav-logout-btn {
     padding: 0;
 }
+
+/* =========================================================
+   ROUTE BUFFER QUERY (popup buttons + distance badge)
+========================================================= */
+
+.route-buffer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 0.8rem;
+}
+
+.route-buffer-actions span {
+    width: 100%;
+    color: #6b6259;
+}
+
+.route-buffer-btn {
+    border: 1px solid #b85f36;
+    background: #fff;
+    color: #b85f36;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.route-buffer-btn:hover,
+.route-buffer-btn:focus-visible {
+    background: #b85f36;
+    color: #fff;
+    outline: none;
+}
+
+.route-distance {
+    margin-left: 4px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #6b6259;
+}
