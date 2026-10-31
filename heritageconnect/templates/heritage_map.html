@@ -49,12 +49,28 @@
     </div>
 
 
-    <nav class="nav-links">
+    <!-- Mobile menu button (shown on small screens only) -->
+    <button
+        id="navToggle"
+        class="nav-toggle"
+        type="button"
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="mainNav"
+    >
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
 
-        <a
-            href="#"
-            class="active"
-        >
+
+    <nav
+        id="mainNav"
+        class="nav-links"
+        aria-label="Main"
+    >
+
+        <a href="#explore" class="active">
             Explore
         </a>
 
@@ -62,11 +78,11 @@
             Artisans
         </a>
 
-        <a href="#">
+        <a href="#routesSection">
             Heritage Routes
         </a>
 
-        <a href="#">
+        <a href="#aboutSection">
             About
         </a>
 
@@ -340,9 +356,13 @@
 
         <!-- MAP -->
 
-        <div class="map-card">
+        <div class="map-card" id="explore">
 
-            <div id="map"></div>
+            <div
+                id="map"
+                role="region"
+                aria-label="Interactive map of Dublin artisans, cultural regions and heritage routes"
+            ></div>
 
 
             <div
@@ -356,16 +376,24 @@
             <div
                 id="mapStatus"
                 class="map-status"
+                role="status"
+                aria-live="polite"
             >
                 Loading HeritageConnect...
             </div>
 
 
-            <div class="map-legend">
+            <div class="map-legend" id="mapLegend">
 
-                <div class="legend-title">
+                <button
+                    id="legendToggle"
+                    class="legend-title legend-toggle"
+                    type="button"
+                    aria-expanded="true"
+                    aria-controls="mapLegend"
+                >
                     Map layers
-                </div>
+                </button>
 
 
                 <label class="layer-toggle">
@@ -461,7 +489,7 @@
             </div>
 
 
-            <div id="results">
+            <div id="results" aria-live="polite">
 
                 <p class="text-muted">
                     Artisan results will appear here.
@@ -470,6 +498,84 @@
             </div>
 
         </aside>
+
+    </section>
+
+
+    <!-- =====================================================
+         HERITAGE ROUTES (cards filled by heritage_map.js)
+    ====================================================== -->
+
+    <section class="routes-section" id="routesSection">
+
+        <div class="section-heading">
+            <h2>Heritage routes</h2>
+            <p>
+                Walk a trail and see which makers are within a short
+                detour of the route.
+            </p>
+        </div>
+
+        <div id="routeCards" class="route-cards">
+            <p class="text-muted">Loading routes...</p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         ABOUT
+    ====================================================== -->
+
+    <section class="about-section" id="aboutSection">
+
+        <div class="section-heading">
+            <h2>About HeritageConnect</h2>
+        </div>
+
+        <div class="about-grid">
+
+            <div>
+                <p>
+                    HeritageConnect is a location-based service that helps
+                    people find traditional craft makers in Dublin and
+                    explore the city's cultural quarters and heritage
+                    trails. Makers can register and add their own
+                    workshop to the map.
+                </p>
+
+                <h3>How to use it</h3>
+                <ul>
+                    <li><strong>Search Nearby:</strong> click the map (or allow
+                        your location), choose a radius, then press
+                        <em>Search Nearby</em>.</li>
+                    <li><strong>Find Nearest:</strong> shows the closest maker
+                        to your chosen point.</li>
+                    <li><strong>Cultural region:</strong> lists only makers
+                        inside that area.</li>
+                    <li><strong>Heritage routes:</strong> click a route and pick
+                        <em>within 200 m</em> to see makers along the way.</li>
+                    <li><strong>Add Artisan:</strong> log in, then add or edit
+                        your own workshop.</li>
+                </ul>
+            </div>
+
+            <div class="about-notes">
+                <h3>Data &amp; credits</h3>
+                <p>
+                    Artisans marked "Sample data" are fictional examples
+                    placed on real Dublin streets for demonstration.
+                    Region boundaries are approximate.
+                </p>
+                <p>
+                    Map data &copy;
+                    <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
+                    contributors. Built with Django, PostGIS, Leaflet
+                    and Bootstrap.
+                </p>
+            </div>
+
+        </div>
 
     </section>
 

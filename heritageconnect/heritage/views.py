@@ -124,6 +124,11 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
     serializer_class = ArtisanLocationSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
+    # ?search=pottery  ?craft_type=WEAVING  ?region=2  ?ordering=-created_at
+    search_fields = ["name", "artisan_name", "address", "description"]
+    filterset_fields = ["craft_type", "region", "owner"]
+    ordering_fields = ["name", "created_at", "craft_type"]
+
     def perform_create(self, serializer):
         # The owner is always the logged-in user, never taken from
         # the request body, so users cannot create items as someone else.
@@ -217,6 +222,8 @@ class CulturalRegionViewSet(viewsets.ModelViewSet):
     queryset = CulturalRegion.objects.all().order_by("name")
     serializer_class = CulturalRegionSerializer
     permission_classes = [IsStaffOrReadOnly]
+    search_fields = ["name", "region_type", "description"]
+    ordering_fields = ["name"]
 
     @action(detail=True, methods=["get"])
     def artisans(self, request, pk=None):
@@ -267,6 +274,9 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
     queryset = HeritageRoute.objects.all().order_by("name")
     serializer_class = HeritageRouteSerializer
     permission_classes = [IsStaffOrReadOnly]
+    search_fields = ["name", "description"]
+    filterset_fields = ["route_type"]
+    ordering_fields = ["name", "distance_km"]
 
     @action(detail=False, methods=["get"])
     def intersecting_region(self, request):

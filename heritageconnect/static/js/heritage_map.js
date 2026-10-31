@@ -1,4 +1,11 @@
-const map = L.map("map").setView([53.3498, -6.2603], 13);
+// scrollWheelZoom starts off so scrolling the page does not zoom the map.
+// It switches on after the user clicks/focuses the map (see below).
+const map = L.map("map", {
+    scrollWheelZoom: false
+}).setView([53.3498, -6.2603], 13);
+
+map.on("click focus", () => map.scrollWheelZoom.enable());
+map.on("mouseout blur", () => map.scrollWheelZoom.disable());
 
 /*
  * OpenStreetMap tiles (required tile provider for the assignment).
@@ -41,6 +48,9 @@ const routeLayer = L.layerGroup().addTo(map);
 
 // Holds the corridor drawn by the "artisans along this route" buffer query.
 const bufferLayer = L.layerGroup().addTo(map);
+
+// Route id -> Leaflet layer, used by the route cards below the map.
+const routeLayersById = {};
 
 const resultsSubtitle =
     document.getElementById("resultsSubtitle");
@@ -518,24 +528,30 @@ async function loadArtisans() {
             "Loading artisans..."
         );
 
-        const response =
-            await fetch(
-                "/api/heritage/artisans/"
+        // The API is paginated (20 per page), so follow the "next"
+        // links until every page has been loaded.
+        const allFeatures = [];
+        let nextUrl = "/api/heritage/artisans/";
+
+        while (nextUrl) {
+            const response = await fetch(nextUrl);
+
+            if (!response.ok) {
+                throw new Error(
+                    "Unable to load artisans."
+                );
+            }
+
+            const data = await response.json();
+
+            allFeatures.push(
+                ...(data.results?.features || data.features || [])
             );
 
-        if (!response.ok) {
-            throw new Error(
-                "Unable to load artisans."
-            );
+            nextUrl = data.next;
         }
 
-        const data =
-            await response.json();
-
-        artisanData =
-            data.results?.features ||
-            data.features ||
-            [];
+        artisanData = allFeatures;
 
         displayArtisans(
             artisanData
@@ -660,6 +676,8 @@ async function loadRoutes() {
 
         routeLayer.clearLayers();
 
+        renderRouteCards(features);
+
         L.geoJSON(
             features,
             {
@@ -675,6 +693,8 @@ async function loadRoutes() {
                         feature,
                         layer
                     ) {
+                        routeLayersById[feature.id] = layer;
+
                         layer.bindPopup(`
                             <h5>
                                 ${escapeHtml(feature.properties.name)}
@@ -2522,6 +2542,123 @@ map.on("popupopen", (event) => {
             });
         });
 });
+
+
+/* =========================================================
+   HERITAGE ROUTE CARDS (below the map)
+========================================================= */
+
+function renderRouteCards(features) {
+    const container = document.getElementById("routeCards");
+
+    if (!container) {
+        return;
+    }
+
+    if (features.length === 0) {
+        container.innerHTML =
+            '<p class="text-muted">No heritage routes yet.</p>';
+        return;
+    }
+
+    container.innerHTML = features.map((feature) => {
+        const p = feature.properties;
+
+        return `
+            <article class="route-card">
+                <div class="result-category">
+                    ${escapeHtml(p.route_type_display)}
+                    <span class="route-distance">· ${escapeHtml(p.distance_km ?? "?")} km</span>
+                </div>
+                <h3>${escapeHtml(p.name)}</h3>
+                <p>${escapeHtml(p.description)}</p>
+                <div class="route-card-actions">
+                    <button type="button" class="route-card-btn"
+                        data-action="show" data-route-id="${escapeHtml(feature.id)}">
+                        Show on map
+                    </button>
+                    <button type="button" class="route-card-btn primary"
+                        data-action="buffer" data-route-id="${escapeHtml(feature.id)}">
+                        Artisans within 200 m
+                    </button>
+                </div>
+            </article>
+        `;
+    }).join("");
+}
+
+
+document.getElementById("routeCards")?.addEventListener("click", (event) => {
+    const button = event.target.closest(".route-card-btn");
+
+    if (!button) {
+        return;
+    }
+
+    const routeId = button.dataset.routeId;
+
+    document.getElementById("explore").scrollIntoView({ behavior: "smooth" });
+
+    if (button.dataset.action === "buffer") {
+        showArtisansAlongRoute(routeId, 200);
+        return;
+    }
+
+    const layer = routeLayersById[routeId];
+
+    if (layer) {
+        if (toggleRoutes && !toggleRoutes.checked) {
+            toggleRoutes.checked = true;
+            map.addLayer(routeLayer);
+        }
+
+        map.fitBounds(layer.getBounds(), { padding: [40, 40] });
+        layer.openPopup(layer.getCenter());
+    }
+});
+
+
+/* =========================================================
+   MOBILE MENU + COLLAPSIBLE MAP LEGEND
+========================================================= */
+
+const navToggle = document.getElementById("navToggle");
+const topbar = document.querySelector(".topbar");
+
+navToggle?.addEventListener("click", () => {
+    const isOpen = topbar.classList.toggle("nav-open");
+
+    navToggle.setAttribute("aria-expanded", String(isOpen));
+    navToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
+});
+
+// Close the mobile menu after choosing a link.
+document.querySelectorAll("#mainNav a").forEach((link) => {
+    link.addEventListener("click", () => {
+        document.querySelectorAll("#mainNav a")
+            .forEach((a) => a.classList.remove("active"));
+        link.classList.add("active");
+
+        topbar.classList.remove("nav-open");
+        navToggle?.setAttribute("aria-expanded", "false");
+    });
+});
+
+
+const mapLegend = document.getElementById("mapLegend");
+const legendToggle = document.getElementById("legendToggle");
+
+function setLegendCollapsed(collapsed) {
+    mapLegend?.classList.toggle("collapsed", collapsed);
+    legendToggle?.setAttribute("aria-expanded", String(!collapsed));
+}
+
+legendToggle?.addEventListener("click", () => {
+    setLegendCollapsed(!mapLegend.classList.contains("collapsed"));
+});
+
+// Start collapsed on phones so the legend does not cover the map.
+setLegendCollapsed(window.matchMedia("(max-width: 820px)").matches);
 
 
 async function initialiseMap() {
