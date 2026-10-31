@@ -80,6 +80,7 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 More: [containers](docs/screenshots/A19-docker-containers.png) ·
 [Nginx security headers](docs/screenshots/A20-nginx-security-headers.png) ·
 [Swagger API docs](docs/screenshots/A25-swagger-api-docs.png) ·
+[Buffer query in Swagger](docs/screenshots/A26-swagger-buffer-query.png) ·
 [Django admin](docs/screenshots/A03-heritage-admin.png)
 
 ---
