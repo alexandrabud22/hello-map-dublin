@@ -69,9 +69,9 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 |---|---|
 | ![Main map](docs/screenshots/A23-main-map.png) | ![Route buffer](docs/screenshots/A21-route-buffer-query.png) |
 
-| Mobile view | Add artisan form |
-|---|---|
-| ![Mobile](docs/screenshots/A22-mobile-responsive.png) | ![Add artisan](docs/screenshots/A24-add-artisan-form.png) |
+| Mobile – menu | Mobile – route buffer | Add artisan form |
+|---|---|---|
+| ![Mobile menu](docs/screenshots/A22-mobile-responsive.png) | ![Mobile route buffer](docs/screenshots/A27-mobile-route-buffer.png) | ![Add artisan](docs/screenshots/A24-add-artisan-form.png) |
 
 | Docker containers on the custom network | Automated tests |
 |---|---|
