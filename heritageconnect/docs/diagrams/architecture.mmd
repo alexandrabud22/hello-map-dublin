@@ -1,0 +1,37 @@
+flowchart LR
+    U["Browser<br/>(desktop / tablet / mobile)<br/>Leaflet + Bootstrap 5"]
+    OSM["OpenStreetMap<br/>tile servers"]
+    NOM["Nominatim<br/>(address search)"]
+
+    subgraph HOST["Your computer (Docker)"]
+        direction LR
+        subgraph NET["heritage_net — bridge network 172.28.0.0/24"]
+            direction LR
+            NG["nginx<br/>heritage_nginx<br/>172.28.0.40<br/>reverse proxy · static files<br/>security headers"]
+            WEB["web<br/>heritage_web<br/>172.28.0.30<br/>Gunicorn + Django 5<br/>DRF + GeoDjango"]
+            DB[("db<br/>heritage_db<br/>172.28.0.10<br/>PostgreSQL 16 + PostGIS 3.4")]
+            PGA["pgadmin<br/>heritage_pgadmin<br/>172.28.0.20<br/>PgAdmin 4"]
+        end
+        V1[("postgis_data")]
+        V2[("static_data")]
+        V3[("pgadmin_data")]
+    end
+
+    U -- "HTTP :8000" --> NG
+    U -- "HTTP :5050" --> PGA
+    U -. "map tiles" .-> OSM
+    U -. "geocoding" .-> NOM
+    NG -- "proxy_pass :8000" --> WEB
+    NG -. "reads /static/" .-> V2
+    WEB -- "SQL :5432" --> DB
+    WEB -. "collectstatic" .-> V2
+    PGA -- "SQL :5432" --> DB
+    DB --- V1
+    PGA --- V3
+
+    classDef ext fill:#f2eee6,stroke:#756e66,color:#2e2a26
+    classDef svc fill:#fffdf9,stroke:#b85f36,stroke-width:2px,color:#2e2a26
+    classDef vol fill:#eef2ec,stroke:#70866c,color:#2e2a26
+    class U,OSM,NOM ext
+    class NG,WEB,DB,PGA svc
+    class V1,V2,V3 vol

@@ -1,717 +1,450 @@
-# Week 4 – Django-Leaflet Integration: Interactive Web Maps
+# HeritageConnect 🧵🗺️
 
-## Overview
+**Discover the hands behind the heritage.**
+HeritageConnect is a location-based web application for finding traditional craft makers in
+Dublin – potters, weavers, woodcarvers, silversmiths – and exploring the city's cultural
+quarters and heritage trails on an interactive map.
 
-Week 4 extends the Week 3 Cities API by adding an interactive Leaflet.js frontend.
+Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Services)**.
 
-The Week 3 Django, PostGIS and REST API environment was reused and extended with:
-
-- Leaflet.js
-- Django templates
-- static JavaScript and CSS files
-- AJAX requests using the Fetch API
-- interactive city markers
-- marker popups
-- city search
-- map reset functionality
-- responsive design
-- frontend functional tests
-
-The final result is a full-stack web mapping application where the Django REST API provides city data and Leaflet displays that data interactively in the browser.
+| | |
+|---|---|
+| **Map** | http://localhost:8000/ |
+| **API (browsable)** | http://localhost:8000/api/heritage/ |
+| **API docs (Swagger)** | http://localhost:8000/api/docs/ |
+| **Django admin** | http://localhost:8000/admin/ |
+| **PgAdmin 4** | http://localhost:5050/ |
+| **Demo login** | `demo` / `HeritageDemo2026!` (see [Test credentials](#test-credentials)) |
 
 ---
 
-## 1. Week 4 Project Setup
+## Contents
 
-The completed Week 3 project was copied into a new `week4` directory.
-
-This preserved the existing:
-
-- Django project
-- PostGIS database configuration
-- Docker Compose environment
-- Week 1 mapping application
-- Week 2 spatial analysis application
-- Week 3 Cities REST API
-
-The Week 4 project was then used as the development environment for the Leaflet frontend.
-
-![Week 4 project setup](01-week4-project-setup.png)
+1. [Features](#features)
+2. [Screenshots](#screenshots)
+3. [Technology stack](#technology-stack)
+4. [Architecture](#architecture)
+5. [Database & spatial queries](#database--spatial-queries)
+6. [Setup – local Docker deployment](#setup--local-docker-deployment)
+7. [Cloud deployment](#cloud-deployment)
+8. [Test credentials](#test-credentials)
+9. [User guide](#user-guide)
+10. [API documentation](#api-documentation)
+11. [Security](#security)
+12. [Testing](#testing)
+13. [Project structure](#project-structure)
+14. [Known issues & limitations](#known-issues--limitations)
+15. [Acknowledgements & attribution](#acknowledgements--attribution)
 
 ---
 
-## 2. Docker Environment
+## Features
 
-The Week 4 Docker environment was started using Docker Compose.
+**Map & discovery**
+- Interactive Leaflet map with **OpenStreetMap** tiles, zoom/pan, popups and layer toggles
+- Three spatial layers: **artisans** (points), **cultural regions** (polygons), **heritage routes** (lines)
+- Search by text, filter by craft type and by cultural region
+- **Search Nearby** – click the map (or use your location) and pick a radius (1–10 km)
+- **Find Nearest** – the closest maker to a chosen point
+- **Artisans along a route** – draws a 200 m / 500 m buffer corridor around a trail and lists the makers inside it, with their distance from the route
+- Heritage route cards and an About / how-to section
+
+**Accounts & data management (CRUD)**
+- Register, log in, log out
+- Logged-in users can **add** an artisan (address search *or* click on a mini map), and **edit / delete** their own artisans
+- The cultural region of a new artisan is **detected automatically** from its location
+- Regions and routes are curated by **staff** (Django admin or API)
+
+**Responsive & accessible**
+- Works on desktop, tablet and phone (mobile menu, collapsible map legend, no overlapping controls)
+- Labelled form fields, screen-reader status messages (`aria-live`), visible keyboard focus
+
+---
+
+## Screenshots
+
+> All screenshots are in [`docs/screenshots/`](docs/screenshots/).
+
+| Interactive map | Artisans along a route (buffer query) |
+|---|---|
+| ![Main map](docs/screenshots/A23-main-map.png) | ![Route buffer](docs/screenshots/A21-route-buffer-query.png) |
+
+| Mobile view | Add artisan form |
+|---|---|
+| ![Mobile](docs/screenshots/A22-mobile-responsive.png) | ![Add artisan](docs/screenshots/A24-add-artisan-form.png) |
+
+| Docker containers on the custom network | Automated tests |
+|---|---|
+| ![Docker network](docs/screenshots/A18-docker-network-subnet.png) | ![Tests](docs/screenshots/A17-api-tests-passing.png) |
+
+More: [containers](docs/screenshots/A19-docker-containers.png) ·
+[Nginx security headers](docs/screenshots/A20-nginx-security-headers.png) ·
+[Swagger API docs](docs/screenshots/A25-swagger-api-docs.png) ·
+[Django admin](docs/screenshots/A03-heritage-admin.png)
+
+---
+
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Database | PostgreSQL 16 + **PostGIS 3.4** (`postgis/postgis:16-3.4`), managed with **PgAdmin 4** |
+| Middle tier | Python 3.12, **Django 5.2** + GeoDjango, Django REST Framework, djangorestframework-gis, django-filter, drf-spectacular (OpenAPI) |
+| App server | **Gunicorn** (3 workers) |
+| Reverse proxy | **Nginx 1.27** (static files, security headers, gzip) |
+| Front end | **Leaflet 1.9.4**, **Bootstrap 5.3**, vanilla JavaScript (Fetch API), Django templates |
+| Map tiles | **OpenStreetMap** |
+| Geocoding | OpenStreetMap **Nominatim** (address → coordinates in the Add Artisan form) |
+| Deployment | **Docker Compose** – 4 containers on an isolated bridge network |
+
+---
+
+## Architecture
+
+![Architecture diagram](docs/architecture-diagram.png)
+
+*Diagram source: [`docs/diagrams/architecture.mmd`](docs/diagrams/architecture.mmd)*
+
+### How a request flows
+1. The browser opens `http://localhost:8000` → **Nginx** (the only public entry point for the app).
+2. Requests for `/static/…` (CSS, JS) are answered by **Nginx** directly.
+3. Everything else is forwarded to **Gunicorn/Django** on the private network.
+4. Django runs the view, queries **PostGIS** through the ORM (or parameterised SQL), and
+   returns HTML or **GeoJSON**.
+5. **Leaflet** draws the GeoJSON on top of OpenStreetMap tiles.
+
+### Model-View-Controller in this project
+
+| MVC role | Django component | Files |
+|---|---|---|
+| **Model** | GeoDjango models (PostGIS tables) | `heritage/models.py` |
+| **View** (presentation) | Django template + Leaflet/JS/CSS | `templates/heritage_map.html`, `static/js/heritage_map.js`, `static/css/heritage_styles.css` |
+| **Controller** | DRF ViewSets, URL routing, serializers (validation), permissions | `heritage/views.py`, `heritage/urls.py`, `heritage/serializers.py`, `heritage/permissions.py` |
+
+### Containers and network
+
+| Service | Container | IP on `heritage_net` (172.28.0.0/24) | Host port |
+|---|---|---|---|
+| `nginx` | heritage_nginx | 172.28.0.40 | **8000** → 80 |
+| `web` (Gunicorn + Django) | heritage_web | 172.28.0.30 | – (private) |
+| `db` (PostGIS) | heritage_db | 172.28.0.10 | – (private) |
+| `pgadmin` | heritage_pgadmin | 172.28.0.20 | **5050** → 80 |
+
+| Volume | Purpose |
+|---|---|
+| `postgis_data` | Database files – data survives restarts |
+| `static_data` | Static files collected by Django, served by Nginx |
+| `pgadmin_data` | PgAdmin settings |
+
+---
+
+## Database & spatial queries
+
+Full documentation: **[`docs/database-schema.md`](docs/database-schema.md)**
+
+![Database schema](docs/database-schema.png)
+
+| Table | Geometry | Index |
+|---|---|---|
+| `heritage_culturalregion` | `boundary` – Polygon, SRID 4326 | GiST |
+| `heritage_artisanlocation` | `location` – Point, SRID 4326 | GiST |
+| `heritage_heritageroute` | `path` – LineString, SRID 4326 | GiST |
+
+### Spatial queries
+
+| # | Question it answers | PostGIS | Endpoint |
+|---|---|---|---|
+| 1 | Which makers are within *r* km of me? | `ST_DistanceSphere` | `/api/heritage/artisans/within_radius/?lat=&lng=&radius=` |
+| 2 | Which maker is closest? | `ST_DistanceSphere` + `ORDER BY` | `/api/heritage/artisans/nearest/?lat=&lng=` |
+| 3 | Which makers are inside this cultural region? | `ST_Within` | `/api/heritage/regions/{id}/artisans/` |
+| 4 | Which routes pass through this region? | `ST_Intersects` | `/api/heritage/routes/intersecting_region/?region_id=` |
+| 5 | Which makers can I visit along this route? | `ST_Buffer`, `ST_DWithin`, `ST_Distance` (geography, metres) | `/api/heritage/routes/{id}/artisans_nearby/?distance=` |
+
+Also: new artisans are linked to their region with `ST_Contains`, and route lengths are
+calculated by projecting the line to **EPSG:2157 (Irish Transverse Mercator)**.
+
+---
+
+## Setup – local Docker deployment
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
+- Git
+- Free ports **8000** and **5050**
+
+### 1. Get the code
+```bash
+git clone <repository-url>
+cd heritageconnect
+```
+
+### 2. Create your `.env` file
+```bash
+cp .env.example .env
+```
+Edit `.env` and set real values for `POSTGRES_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` and
+`DJANGO_SECRET_KEY`. Generate a secret key with:
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+`DJANGO_DEBUG=True` gives detailed errors and auto-reload while developing.
+Use `DJANGO_DEBUG=False` for a production-style run.
+
+### 3. Build and start
+```bash
+docker compose up -d --build
+docker compose ps        # wait until web and db show "healthy"
+```
+On start-up the web container automatically runs database **migrations** and
+**collectstatic**, then starts **Gunicorn**.
+
+### 4. Load sample data and accounts
+```bash
+docker compose exec web python manage.py load_heritage_data   # 4 regions, 3 routes, 12 artisans
+docker compose exec web python manage.py create_demo_user     # demo account
+docker compose exec web python manage.py createsuperuser      # your own admin (optional)
+```
+
+### 5. Open the app
+- Map: **http://localhost:8000/**
+- PgAdmin: **http://localhost:5050/** → add a server with host **`db`**, port `5432`, and the
+  database user/password from `.env`
+
+### Useful commands
+| Task | Command |
+|---|---|
+| View logs | `docker compose logs -f web` |
+| Stop (keeps data) | `docker compose down` |
+| Start again | `docker compose up -d` |
+| Run tests | `docker compose exec web python manage.py test heritage -v 2` |
+| Inspect network | `docker network inspect heritage_net` |
+| ⚠️ Delete everything incl. database | `docker compose down -v` |
+
+---
+
+## Cloud deployment
+
+The assignment brief states that **local containerised deployment is sufficient**, so the
+application has **not** been deployed to a cloud provider. Because everything runs in Docker
+Compose, a cloud deployment would follow the same steps on a Linux VM (e.g. Azure, AWS EC2,
+DigitalOcean):
+
+1. Install Docker on the VM, clone the repository, create `.env`.
+2. Set `DJANGO_DEBUG=False`, add the server's domain to `DJANGO_ALLOWED_HOSTS` and
+   `DJANGO_CSRF_TRUSTED_ORIGINS`.
+3. Add HTTPS (e.g. Let's Encrypt certificate in Nginx) and set `DJANGO_SECURE_COOKIES=True`
+   (enables secure cookies, HSTS and HTTPS redirect).
+4. Remove the public PgAdmin port or restrict it with a firewall.
+5. `docker compose up -d --build`.
+
+---
+
+## Test credentials
+
+| Role | Username | Password | Can do |
+|---|---|---|---|
+| Normal user | `demo` | `HeritageDemo2026!` | Browse, add artisans, edit/delete **own** artisans (owns *Demo Basket Weaver*) |
+| Admin | create with `createsuperuser` | – | Everything, incl. regions & routes in `/admin/` |
+
+Create or reset the demo account at any time:
+```bash
+docker compose exec web python manage.py create_demo_user
+```
+The demo password is for local demonstration only (configurable via `DEMO_USER_PASSWORD`).
+
+---
+
+## User guide
+
+| I want to… | How |
+|---|---|
+| Browse makers | Open the map. Click a marker for details, or click a card in the list to zoom to it. |
+| Search | Type in **Search** (name, maker, craft or place) and/or choose a **Craft category**. |
+| See one cultural area | Choose a **Cultural region**. Only makers inside that polygon are listed. |
+| Find makers near a place | Click the map (or allow location), choose a **Search radius**, press **Search Nearby**. |
+| Find the closest maker | Choose a point, press **◆ Find Nearest**. |
+| Plan a walk | Scroll to **Heritage routes** and press **Artisans within 200 m**, or click a route on the map and choose *within 200 m / 500 m*. |
+| Show/hide layers | Use the **Map layers** box on the map (tap it to open on mobile). |
+| Add my workshop | **Register / Login → + Add Artisan**. Type an address (it is found on the map) or click the mini map, then **Save**. |
+| Edit or delete | Your own artisans show **Edit** / **Delete** in the list. |
+| Start again | **Reset map**. |
+
+---
+
+## API documentation
+
+Interactive documentation: **http://localhost:8000/api/docs/** (OpenAPI/Swagger, generated by drf-spectacular).
+All spatial responses are **GeoJSON** (`Feature` / `FeatureCollection`).
+List endpoints are paginated (20 per page, follow `next`).
+
+### Endpoints
+
+| Method | URL | Who | Description |
+|---|---|---|---|
+| GET | `/api/heritage/artisans/` | anyone | List artisans. Query: `search`, `craft_type`, `region`, `owner`, `ordering`, `page` |
+| POST | `/api/heritage/artisans/` | logged in | Create artisan (owner = current user) |
+| GET | `/api/heritage/artisans/{id}/` | anyone | One artisan |
+| PUT / PATCH | `/api/heritage/artisans/{id}/` | owner / staff | Update |
+| DELETE | `/api/heritage/artisans/{id}/` | owner / staff | Delete |
+| GET | `/api/heritage/artisans/within_radius/?lat=&lng=&radius=` | anyone | **Proximity** (radius in km, 0.01–50) |
+| GET | `/api/heritage/artisans/nearest/?lat=&lng=` | anyone | **Nearest** artisan + distance |
+| GET | `/api/heritage/regions/` | anyone | List regions (with `artisan_count`) |
+| POST / PUT / PATCH / DELETE | `/api/heritage/regions/…` | staff | Manage regions |
+| GET | `/api/heritage/regions/{id}/artisans/` | anyone | **Containment** |
+| GET | `/api/heritage/routes/` | anyone | List routes. Query: `search`, `route_type`, `ordering` |
+| POST / PUT / PATCH / DELETE | `/api/heritage/routes/…` | staff | Manage routes |
+| GET | `/api/heritage/routes/intersecting_region/?region_id=` | anyone | **Intersection** |
+| GET | `/api/heritage/routes/{id}/artisans_nearby/?distance=` | anyone | **Buffer** (metres, 10–2000, default 200) |
+
+### Example – create an artisan
+```http
+POST /api/heritage/artisans/
+Content-Type: application/json
+X-CSRFToken: <csrftoken cookie>
+
+{
+  "type": "Feature",
+  "geometry": { "type": "Point", "coordinates": [-6.2780, 53.3405] },
+  "properties": {
+    "name": "Meath Street Baskets",
+    "artisan_name": "Aoife Murphy",
+    "craft_type": "WEAVING",
+    "address": "Meath Street, Dublin 8",
+    "phone": "+353 1 555 0100"
+  }
+}
+```
+`201 Created` returns the new Feature, with `region` filled in automatically.
+
+### Example – buffer query
+```http
+GET /api/heritage/routes/3/artisans_nearby/?distance=200
+```
+```json
+{
+  "route": { "id": 3, "name": "Liffey Quays Heritage Walk", "distance_km": "3.79" },
+  "buffer_m": 200.0,
+  "buffer": { "type": "Polygon", "coordinates": [ ... ] },
+  "count": 3,
+  "artisans": { "type": "FeatureCollection", "features": [
+    { "type": "Feature", "properties": { "name": "Temple Bar Pottery Studio", "distance_to_route_m": 64, ... } }
+  ] }
+}
+```
+
+### Errors
+| Status | When | Example body |
+|---|---|---|
+| 400 | Missing / invalid / out-of-range input | `{"error": "'lat' must be between -90 and 90."}` or `{"phone": ["Phone may only contain digits, spaces, +, -, ( and )."]}` |
+| 403 | Not logged in, or not the owner / staff | `{"detail": "You do not have permission to perform this action."}` |
+| 404 | Unknown id | `{"error": "Cultural region not found."}` |
+| 429 | Rate limit exceeded (120/min anonymous, 300/min logged in) | `{"detail": "Request was throttled. ..."}` |
+
+---
+
+## Security
+
+| Area | Measure |
+|---|---|
+| Secrets | All passwords/keys in `.env` (git-ignored, Docker-ignored); `.env.example` has placeholders only |
+| Network | Database and Django are **not exposed** to the host – only Nginx (8000) and PgAdmin (5050) |
+| Containers | Django runs as a **non-root** user; `.dockerignore` keeps `.env` and `.git` out of the image |
+| Django | `DEBUG` off by default, `ALLOWED_HOSTS` / CSRF trusted origins from `.env`, CORS restricted, session cookie HTTP-only, `X_FRAME_OPTIONS=DENY`, optional HTTPS settings (`DJANGO_SECURE_COOKIES`) |
+| Nginx | Hides version, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, request size limit |
+| API | Object-level permissions (owner / staff), rate limiting, input validation, owner always taken from the session |
+| Database | ORM queries + **parameterised** raw SQL (no string concatenation → no SQL injection) |
+| Front end | All user text is **HTML-escaped** before display (prevents stored XSS); CSRF token on every write |
+
+---
+
+## Testing
 
 ```bash
-docker compose up -d
-docker compose ps
+docker compose exec web python manage.py test heritage -v 2
 ```
+21 automated tests in [`heritage/tests.py`](heritage/tests.py), run against a temporary
+PostGIS test database:
 
-The environment contains:
+| Group | Tests |
+|---|---|
+| Models | automatic region detection, automatic route length |
+| Permissions | read access, anonymous blocked, owner set from session, owner-only edit, staff moderation, staff-only regions/routes |
+| Validation | bad / missing / out-of-range parameters, outside Ireland, bad phone, blank name, point outside chosen region |
+| Spatial queries | radius (incl. ordering), nearest, containment, intersection, buffer (200 m vs 1 km) |
+| Pages | home redirect, map page loads Leaflet |
 
-- Django web service
-- PostgreSQL/PostGIS database
-- pgAdmin
-
-The database health check confirmed that PostGIS was running successfully.
-
-![Docker services](02-docker-services-w4.png)
+Manual testing: desktop browser and phone-sized viewport (375 px) emulation.
+<!-- TODO (Alexandra): list the browsers/devices you tested on yourself -->
 
 ---
 
-## 3. Frontend Project Structure
+## Project structure
 
-New frontend directories were created for the Week 4 mapping interface:
-
-```text
-static/
-├── css/
-│   └── styles.css
-├── images/
-└── js/
-    └── map.js
-
-templates/
-└── map.html
 ```
-
-The `templates` directory stores the Django map template.
-
-The `static` directory stores the JavaScript, CSS and image assets used by the Leaflet frontend.
-
-![Frontend structure](03-frontend-structure.png)
-
----
-
-## 4. Django Static File Configuration
-
-The Django settings were updated to support project-level templates and static files.
-
-The following static configuration was added:
-
-```python
-STATIC_URL = "/static/"
-
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
-```
-
-The template configuration was updated so Django could locate:
-
-```text
-templates/map.html
-```
-
-using:
-
-```python
-"DIRS": [
-    BASE_DIR / "templates",
-],
-```
-
-CORS support was also retained so the frontend and REST API could communicate correctly during development.
-
-![Static settings](04-static-settings.png)
-
----
-
-## 5. Map URL Configuration
-
-The main Django URL configuration was extended with a new route for the Leaflet map.
-
-The Week 3 API routes and previous lab routes were preserved.
-
-The Week 4 route was added using Django's `TemplateView`:
-
-```python
-path(
-    'map/',
-    TemplateView.as_view(template_name='map.html'),
-    name='map'
-),
-```
-
-The interactive map therefore became available at:
-
-```text
-http://localhost:8000/map/
-```
-
-![Map URL route](05-map-url-route.png)
-
----
-
-## 6. Django Configuration Check
-
-The Django project configuration was checked using:
-
-```bash
-docker compose run --rm web python manage.py check
-```
-
-The result was:
-
-```text
-System check identified no issues (0 silenced).
-```
-
-This confirmed that the Week 4 settings and URL configuration were valid.
-
-![Django check](06-django-check.png)
-
----
-
-## 7. Leaflet Map Template
-
-A new Django template was created at:
-
-```text
-templates/map.html
-```
-
-The template contains:
-
-- a Leaflet map container
-- a city search input
-- a Reset View button
-- a search results area
-- a city information box
-- a loading message
-- Leaflet CSS and JavaScript
-- custom Week 4 CSS and JavaScript
-
-Leaflet is loaded through a CDN, while the Week 4 application logic is loaded from Django static files.
-
-![Map template](07-map-template.png)
-
----
-
-## 8. Custom Map Styling
-
-A custom stylesheet was created at:
-
-```text
-static/css/styles.css
-```
-
-The stylesheet provides styling for:
-
-- the full-screen map
-- the search panel
-- search input
-- Reset View button
-- search results
-- city popups
-- map information box
-- loading indicator
-- responsive mobile layout
-
-A media query was added so the interface remains usable on smaller screens.
-
-![Map styles](08-map-styles.png)
-
----
-
-## 9. Leaflet JavaScript Logic
-
-The main map functionality was implemented in:
-
-```text
-static/js/map.js
-```
-
-The JavaScript is responsible for:
-
-- initializing the Leaflet map
-- loading a basemap
-- fetching city data from the REST API
-- creating city markers
-- creating city popups
-- filtering cities
-- navigating to selected cities
-- resetting the map
-- updating the city count
-- displaying loading state information
-
-The existing Week 3 API endpoint was used:
-
-```javascript
-const API_URL = "/api/cities/";
-```
-
-![Map JavaScript](09-map-javascript.png)
-
----
-
-## 10. Cities API Verification
-
-Before connecting the frontend to the map, the Week 3 Cities API was tested directly.
-
-The endpoint:
-
-```text
-http://localhost:8000/api/cities/
-```
-
-returned:
-
-```text
-HTTP 200 OK
-```
-
-and:
-
-```text
-count: 20
-```
-
-The response contained city records such as:
-
-- Paris
-- London
-- Madrid
-- Barcelona
-- Dublin
-- Berlin
-- Rome
-- Vienna
-
-This confirmed that the backend API was available for the Leaflet frontend.
-
-![API data](10-api-data.png)
-
----
-
-## 11. Static File Verification
-
-Django static-file serving was tested directly in the browser.
-
-The JavaScript file was accessible at:
-
-```text
-http://localhost:8000/static/js/map.js
-```
-
-The stylesheet was accessible at:
-
-```text
-http://localhost:8000/static/css/styles.css
-```
-
-Both files loaded successfully without a 404 error.
-
-![Static files](11-static-files.png)
-
----
-
-## 12. Interactive Leaflet Map
-
-The completed map was accessed at:
-
-```text
-http://localhost:8000/map/
-```
-
-The application successfully displayed:
-
-- a geographic basemap
-- 20 city markers
-- city search controls
-- Reset View functionality
-- city count information
-
-The map automatically fitted the view to the available city data.
-
-![Interactive map](12-interactive-map.png)
-
----
-
-## 13. City Marker Popups
-
-Each city is displayed as an interactive Leaflet circle marker.
-
-Clicking a marker opens a popup containing city information.
-
-Popup information includes:
-
-- city name
-- country
-- region
-- population
-- coordinates
-- capital status
-
-This allows users to explore the API data directly from the map.
-
-![City popup](13-city-popup.png)
-
----
-
-## 14. City Search Functionality
-
-The city search field filters cities using either:
-
-- city name
-- country name
-
-For example, searching for:
-
-```text
-Dublin
-```
-
-filters the map to Dublin and displays the matching search result.
-
-Selecting the result moves the map to the city location.
-
-![City search](14-city-search.png)
-
----
-
-## 15. Frontend-Backend Communication
-
-Chrome Developer Tools were used to verify communication between the Leaflet frontend and the Django REST API.
-
-The browser console showed:
-
-```text
-Week 4 map.js loaded
-DOM loaded. Starting map...
-Fetching city data from: /api/cities/
-API response status: 200
-API data received: Object
-```
-
-This confirmed that:
-
-- JavaScript loaded successfully
-- the DOM initialized correctly
-- the REST API request was successful
-- city data was received by the frontend
-
-The only browser warning was a missing favicon, which does not affect application functionality.
-
-![Browser console](15-browser-console.png)
-
----
-
-## 16. Automated Frontend Tests
-
-Functional tests were created in:
-
-```text
-tests/test_frontend.py
-```
-
-The tests verify that:
-
-- the map page loads successfully
-- the `Cities Web Map` content is present
-- Leaflet is included
-- the search input exists
-- the Reset View button exists
-- the JavaScript static file is referenced
-- the CSS static file is referenced
-
-The test suite was run using:
-
-```bash
-docker compose run --rm web python manage.py test
-```
-
-The result was:
-
-```text
-Ran 3 tests in 0.006s
-
-OK
-```
-
-![Frontend tests](16-frontend-tests.png)
-
----
-
-## 17. Responsive Design Testing
-
-Chrome Developer Tools device emulation was used to test the application on a mobile-sized viewport.
-
-The application remained usable on an iPhone-sized display.
-
-The responsive version retained:
-
-- the interactive map
-- city markers
-- the search panel
-- Reset View
-- city information
-
-This confirmed that the responsive CSS rules were working correctly.
-
-![Responsive map](17-responsive-map.png)
-
----
-
-## 18. Network and Performance Testing
-
-Chrome Developer Tools Network tab was used to inspect the API request.
-
-The city API request returned:
-
-```text
-Status: 200
-Type: fetch
-Size: approximately 3.6 kB
-Time: approximately 72 ms
-```
-
-The overall page load completed in under one second in the local Docker development environment.
-
-This confirmed that frontend-backend communication was functioning efficiently for the sample dataset.
-
-![Network performance](18-network-performance.png)
-
----
-
-## 19. Database Migration Synchronisation
-
-During validation, Django reported that the current `City` model contained a field change not yet represented in a migration.
-
-A new migration was created:
-
-```text
-cities_api/migrations/0002_alter_city_founded_year.py
-```
-
-The migration was then applied successfully.
-
-Verification showed:
-
-```text
-cities_api
- [X] 0001_initial
- [X] 0002_alter_city_founded_year
-```
-
-A final migration check reported:
-
-```text
-No changes detected
-```
-
-This confirmed that the Django models and database migration state were synchronized.
-
----
-
-## 20. Final Validation
-
-Final validation confirmed that:
-
-- the PostGIS database was healthy
-- pgAdmin was running
-- Django was running
-- the Cities API was working
-- 20 city records were available
-- the interactive Leaflet map was working
-- static JavaScript and CSS files loaded correctly
-- city markers were displayed
-- city search worked
-- Reset View worked
-- responsive design worked
-- the API returned HTTP 200
-- all frontend tests passed
-- Django reported no system-check issues
-- no pending model migrations remained
-
-The final test output included:
-
-```text
-Ran 3 tests in 0.006s
-
-OK
-```
-
-and:
-
-```text
-System check identified no issues (0 silenced).
-```
-
-![Final validation](19-final-validation.png)
-
----
-
-## Challenges Encountered and Solutions
-
-### Missing Week 4 Environment File
-
-When Week 4 was first started, Docker Compose reported that several environment variables were missing.
-
-The Week 4 directory contained `.env.example`, but not the actual `.env` file.
-
-The original Week 3 `.env` file was located in the previous Lab 3 project and copied into the Week 4 project.
-
-This restored the database, Django and pgAdmin configuration.
-
-The `.env` file remains excluded from Git.
-
----
-
-### Missing Cities Database Table
-
-The Cities API initially returned:
-
-```text
-ProgrammingError
-relation "cities_api_city" does not exist
-```
-
-The Week 4 Docker environment was using a fresh database volume.
-
-The database migrations and city loading command were therefore run.
-
-The city loader successfully created:
-
-```text
-Created: 20 cities
-Updated: 0 cities
-Total: 20 cities in database
-```
-
-After this, the `/api/cities/` endpoint returned HTTP 200 successfully.
-
----
-
-### OpenStreetMap Tile Access Error
-
-The original OpenStreetMap tile URL returned:
-
-```text
-403 Access blocked
-```
-
-Although the city markers and API data were working, the background map tiles were unavailable.
-
-The basemap was replaced with another Leaflet-compatible tile provider.
-
----
-
-### Basemap API Key Error
-
-A second attempted basemap returned an API key warning.
-
-The application was then configured to use the Esri World Street Map tile service:
-
-```javascript
-L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-    {
-        attribution: "Tiles &copy; Esri",
-        maxZoom: 19
-    }
-).addTo(map);
-```
-
-This successfully displayed the geographic basemap.
-
----
-
-### Pending City Model Migration
-
-Django reported that the `cities_api` model contained a change to the `founded_year` field that was not represented by an existing migration.
-
-The migration was created and applied:
-
-```text
-0002_alter_city_founded_year
-```
-
-A final dry-run migration check returned:
-
-```text
-No changes detected
+heritageconnect/
+├── compose.yaml              # 4 services, custom network, volumes
+├── Dockerfile                # Django/GeoDjango image (non-root)
+├── docker/entrypoint.sh      # migrate → collectstatic → gunicorn
+├── nginx/nginx.conf          # reverse proxy, static files, security headers
+├── .env.example              # environment variable template
+├── requirements.txt
+├── manage.py
+├── hello_map/                # Django project package
+│   ├── settings.py           # settings from environment variables
+│   └── urls.py               # top-level routes
+├── heritage/                 # HeritageConnect app
+│   ├── models.py             # Model – PostGIS tables
+│   ├── serializers.py        # GeoJSON + validation
+│   ├── views.py              # Controller – API + spatial queries
+│   ├── permissions.py        # owner / staff rules
+│   ├── urls.py               # API router
+│   ├── admin.py              # Django admin (map widgets)
+│   ├── tests.py              # 21 automated tests
+│   ├── migrations/           # database schema migrations
+│   └── management/commands/  # load_heritage_data, create_demo_user
+├── templates/
+│   ├── heritage_map.html     # View – main page
+│   └── registration/         # login / register pages
+├── static/
+│   ├── js/heritage_map.js    # Leaflet map + API calls
+│   └── css/heritage_styles.css
+└── docs/
+    ├── database-schema.md
+    ├── architecture-diagram.png
+    ├── database-schema.png
+    ├── diagrams/             # Mermaid sources of the diagrams
+    └── screenshots/
 ```
 
 ---
 
-## Technologies Used
+## Known issues & limitations
 
-- Python
-- Django
-- GeoDjango
-- Django REST Framework
-- PostgreSQL
-- PostGIS
-- Docker
-- Docker Compose
-- pgAdmin
-- JavaScript
-- Fetch API
-- Leaflet.js
-- HTML
-- CSS
-- Esri map tiles
-
----
-
-## Key Features
-
-The completed Week 4 application includes:
-
-- interactive web mapping
-- REST API integration
-- AJAX / Fetch API communication
-- dynamic city markers
-- city information popups
-- city search
-- country search
-- map navigation
-- Reset View
-- responsive layout
-- browser console debugging
-- network request validation
-- automated frontend tests
+- **Sample data:** the 12 sample artisans are fictional; region boundaries are simplified
+  approximations of real Dublin areas.
+- **HTTP only locally:** there is no TLS certificate in the local setup; HTTPS settings exist
+  but are switched off (`DJANGO_SECURE_COOKIES=False`).
+- **Geocoding:** address search uses the public Nominatim service, which has a usage limit
+  (about 1 request/second) and needs internet access. Clicking the mini map always works.
+- **Buffer query performance:** distances are calculated on `geography` casts for accuracy in
+  metres; with a very large dataset a dedicated geography index would be needed.
+- **Regions** are single polygons (no multi-polygons) and regions/routes can only be edited
+  by staff (Django admin), not in the public map interface.
+- **Map tiles** come from the public OpenStreetMap tile servers, which are fine for a student
+  project but not for heavy production traffic.
+- **Development mode:** with `DJANGO_DEBUG=True` Gunicorn auto-reloads on code changes; use
+  `False` for demos and submission.
 
 ---
 
-## Future Enhancements
+## Acknowledgements & attribution
 
-Possible future improvements include:
-
-- marker clustering
-- GeoJSON layer support
-- city heatmaps
-- multiple basemap options
-- population-based marker sizes
-- country filters
-- capital-city filters
-- map legends
-- custom marker icons
-- city detail pages
-- user-selected spatial queries
-- API authentication
-- production static-file hosting
-- improved caching
-
----
-
-## Conclusion
-
-Week 4 successfully connected the Week 3 Django REST API to an interactive Leaflet.js frontend.
-
-The completed application demonstrates a full-stack web mapping workflow where:
-
-- Django provides the web application
-- Django REST Framework provides city data
-- PostGIS stores geographic information
-- JavaScript fetches the API data
-- Leaflet displays the geographic data interactively
-- users can search, navigate and inspect city information
-- Docker provides a reproducible development environment
-
-The result is a complete containerized web mapping application that combines backend spatial data with an interactive browser-based map.
+- Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors; geocoding by Nominatim
+- [Leaflet](https://leafletjs.com/), [Bootstrap](https://getbootstrap.com/),
+  [Django](https://www.djangoproject.com/), [Django REST Framework](https://www.django-rest-framework.org/),
+  [djangorestframework-gis](https://github.com/openwisp/django-rest-framework-gis),
+  [drf-spectacular](https://drf-spectacular.readthedocs.io/), [PostGIS](https://postgis.net/),
+  [Nginx](https://nginx.org/), [Gunicorn](https://gunicorn.org/)
+- Docker images: `postgis/postgis`, `dpage/pgadmin4`, `nginx`, `python`
+- Project setup based on the CMPU4058 lab exercises (Weeks 1–4)
+<!-- TODO (Alexandra): add any further attribution required by the module's academic integrity / AI-use policy -->
