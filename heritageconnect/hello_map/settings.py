@@ -65,10 +65,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_spectacular",
 
-    # Project applications
-    "mapping",
-    "spatial_analysis",
-    "cities_api",
+    # Project application
     "heritage",
 ]
 
@@ -96,8 +93,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
 
-        # Week 4:
-        # Allows Django to find templates/map.html
+        # Project-level templates (heritage_map.html, registration/*)
         "DIRS": [
             BASE_DIR / "templates",
         ],
