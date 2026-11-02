@@ -453,4 +453,4 @@ heritageconnect/
   [Nginx](https://nginx.org/), [Gunicorn](https://gunicorn.org/)
 - Docker images: `postgis/postgis`, `dpage/pgadmin4`, `nginx`, `python`
 - Project setup based on the CMPU4058 lab exercises (Weeks 1–4)
-<!-- TODO (Alexandra): add any further attribution required by the module's academic integrity / AI-use policy -->
+
