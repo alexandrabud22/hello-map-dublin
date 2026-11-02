@@ -157,14 +157,28 @@ Full documentation: **[`docs/database-schema.md`](docs/database-schema.md)**
 
 | # | Question it answers | PostGIS | Endpoint |
 |---|---|---|---|
-| 1 | Which makers are within *r* km of me? | `ST_DistanceSphere` | `/api/heritage/artisans/within_radius/?lat=&lng=&radius=` |
-| 2 | Which maker is closest? | `ST_DistanceSphere` + `ORDER BY` | `/api/heritage/artisans/nearest/?lat=&lng=` |
+| 1 | Which makers are within *r* km of me? | `ST_DWithin` (index pre-filter) + `ST_DistanceSphere` | `/api/heritage/artisans/within_radius/?lat=&lng=&radius=` |
+| 2 | Which maker is closest? | KNN `<->` (index-ordered) + `ST_DistanceSphere` | `/api/heritage/artisans/nearest/?lat=&lng=` |
 | 3 | Which makers are inside this cultural region? | `ST_Within` | `/api/heritage/regions/{id}/artisans/` |
 | 4 | Which routes pass through this region? | `ST_Intersects` | `/api/heritage/routes/intersecting_region/?region_id=` |
 | 5 | Which makers can I visit along this route? | `ST_Buffer`, `ST_DWithin`, `ST_Distance` (geography, metres) | `/api/heritage/routes/{id}/artisans_nearby/?distance=` |
 
 Also: new artisans are linked to their region with `ST_Contains`, and route lengths are
 calculated by projecting the line to **EPSG:2157 (Irish Transverse Mercator)**.
+
+### Query performance and indexes
+- Geometry columns have **GiST** indexes; migration `0003` adds GiST **expression indexes on
+  `location::geography` and `path::geography`** for the metre-based buffer query.
+- The radius search first uses an **index-friendly `ST_DWithin` box** (degrees), then checks the
+  exact distance only on the rows that pass.
+- The nearest search uses the PostGIS **KNN operator `<->`**, which walks the index instead of
+  measuring every row, then confirms the closest of the top 5 in metres.
+- See the query plans yourself:
+  ```bash
+  docker compose exec web python manage.py explain_spatial_queries
+  ```
+  (With only ~15 rows PostgreSQL normally prefers a full table scan, so this command switches
+  sequential scans off for its own connection to show how the indexes are used at scale.)
 
 ---
 
@@ -191,8 +205,7 @@ Edit `.env` and set real values for `POSTGRES_PASSWORD`, `PGADMIN_DEFAULT_PASSWO
 python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 `.env.example` starts in **production mode** (`DJANGO_DEBUG=False`), which is the
-setting used for assessment. Set `DJANGO_DEBUG=True` only while developing
-(detailed error pages and automatic reload), then run `docker compose up -d` again.
+setting used for assessment.
 
 ### 3. Build and start
 ```bash
@@ -200,7 +213,14 @@ docker compose up -d --build
 docker compose ps        # wait until web and db show "healthy"
 ```
 On start-up the web container automatically runs database **migrations** and
-**collectstatic**, then starts **Gunicorn**.
+**collectstatic**, then starts **Gunicorn**. The application code is built **into the image**
+(no source-code mounts), so after changing code run `docker compose up -d --build`.
+
+**Development mode (optional):** set `DJANGO_DEBUG=True` in `.env` and add the development
+override, which mounts the source code for live reload:
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up -d
+```
 
 ### 4. Load sample data and accounts
 ```bash
@@ -221,6 +241,8 @@ docker compose exec web python manage.py createsuperuser      # your own admin (
 | Stop (keeps data) | `docker compose down` |
 | Start again | `docker compose up -d` |
 | Run tests | `docker compose exec web python manage.py test heritage -v 2` |
+| Show spatial query plans | `docker compose exec web python manage.py explain_spatial_queries` |
+| Rebuild after code changes | `docker compose up -d --build` |
 | Inspect network | `docker network inspect heritage_net` |
 | ⚠️ Delete everything incl. database | `docker compose down -v` |
 
@@ -354,11 +376,11 @@ GET /api/heritage/routes/3/artisans_nearby/?distance=200
 |---|---|
 | Secrets | All passwords/keys in `.env` (git-ignored, Docker-ignored); `.env.example` has placeholders only |
 | Network | Database and Django are **not exposed** to the host – only Nginx (8000) and PgAdmin (5050) |
-| Containers | Django runs as a **non-root** user; `.dockerignore` keeps `.env` and `.git` out of the image |
+| Containers | Django runs as a **non-root** user; code baked into the image (no source mounts in production); `.dockerignore` keeps `.env` and `.git` out of the image |
 | Django | `DEBUG` off by default, `ALLOWED_HOSTS` / CSRF trusted origins from `.env`, CORS restricted, session cookie HTTP-only, `X_FRAME_OPTIONS=DENY`, optional HTTPS settings (`DJANGO_SECURE_COOKIES`) |
 | Nginx | Hides version, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, request size limit |
 | API | Object-level permissions (owner / staff), rate limiting, input validation, owner always taken from the session |
-| Database | ORM queries + **parameterised** raw SQL (no string concatenation → no SQL injection) |
+| Database | ORM queries + **parameterised** raw SQL (no string concatenation → no SQL injection); geometry type and validity checked before saving |
 | Front end | All user text is **HTML-escaped** before display (prevents stored XSS); CSRF token on every write |
 
 ---
@@ -368,7 +390,7 @@ GET /api/heritage/routes/3/artisans_nearby/?distance=200
 ```bash
 docker compose exec web python manage.py test heritage -v 2
 ```
-21 automated tests in [`heritage/tests.py`](heritage/tests.py), run against a temporary
+31 automated tests in [`heritage/tests.py`](heritage/tests.py), run against a temporary
 PostGIS test database:
 
 | Group | Tests |
@@ -376,6 +398,7 @@ PostGIS test database:
 | Models | automatic region detection, automatic route length |
 | Permissions | read access, anonymous blocked, owner set from session, owner-only edit, staff moderation, staff-only regions/routes |
 | Validation | bad / missing / out-of-range parameters, outside Ireland, bad phone, blank name, point outside chosen region |
+| Robustness | wrong geometry type, missing geometry, garbage coordinates, swapped lat/lng, broken JSON, self-intersecting polygon, one-point route, empty results, no data |
 | Spatial queries | radius (incl. ordering), nearest, containment, intersection, buffer (200 m vs 1 km) |
 | Pages | home redirect, map page loads Leaflet |
 
@@ -388,7 +411,8 @@ Tested on Chrome 130 and Safari 18 (macOS), and on an iPhone using Chrome DevToo
 
 ```
 heritageconnect/
-├── compose.yaml              # 4 services, custom network, volumes
+├── compose.yaml              # 4 services, custom network, volumes (production-style)
+├── compose.dev.yaml          # development override: live code mounts
 ├── Dockerfile                # Django/GeoDjango image (non-root)
 ├── docker/entrypoint.sh      # migrate → collectstatic → gunicorn
 ├── nginx/nginx.conf          # reverse proxy, static files, security headers
@@ -405,9 +429,9 @@ heritageconnect/
 │   ├── permissions.py        # owner / staff rules
 │   ├── urls.py               # API router
 │   ├── admin.py              # Django admin (map widgets)
-│   ├── tests.py              # 21 automated tests
+│   ├── tests.py              # 31 automated tests
 │   ├── migrations/           # database schema migrations
-│   └── management/commands/  # load_heritage_data, create_demo_user
+│   └── management/commands/  # load_heritage_data, create_demo_user, explain_spatial_queries
 ├── templates/
 │   ├── heritage_map.html     # View – main page
 │   └── registration/         # login / register pages
@@ -432,14 +456,17 @@ heritageconnect/
   but are switched off (`DJANGO_SECURE_COOKIES=False`).
 - **Geocoding:** address search uses the public Nominatim service, which has a usage limit
   (about 1 request/second) and needs internet access. Clicking the mini map always works.
-- **Buffer query performance:** distances are calculated on `geography` casts for accuracy in
-  metres; with a very large dataset a dedicated geography index would be needed.
+- **Apple Silicon:** the official `postgis/postgis` image is amd64-only, so on M-series Macs
+  Docker runs it through emulation (declared with `platform: linux/amd64`). It works, but the
+  database starts a little slower.
+- **Small dataset:** with ~15 rows PostgreSQL chooses full table scans; the spatial indexes
+  pay off as data grows (see `explain_spatial_queries`).
 - **Regions** are single polygons (no multi-polygons) and regions/routes can only be edited
   by staff (Django admin), not in the public map interface.
 - **Map tiles** come from the public OpenStreetMap tile servers, which are fine for a student
   project but not for heavy production traffic.
-- **Development mode:** with `DJANGO_DEBUG=True` Gunicorn auto-reloads on code changes; the
-  default (`False`) is used for demos and submission.
+- **Development mode:** only with `DJANGO_DEBUG=True` **and** `compose.dev.yaml` do code changes
+  apply without a rebuild; the default production setup is used for demos and submission.
 
 ---
 

@@ -11,6 +11,8 @@ Covered:
   * Models      - automatic region detection, automatic route length
   * Permissions - anonymous / normal user / owner / staff rules
   * Validation  - bad query parameters and bad artisan data
+  * Robustness  - wrong/missing/garbage geometry, broken JSON,
+                  self-intersecting polygons, empty results
   * Spatial     - radius, nearest, containment, intersection, buffer
   * Pages       - home redirect and map page
 """
@@ -231,6 +233,116 @@ class ValidationTests(HeritageTestData):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
+
+
+# =========================================================
+# Malformed geometry and unusual input
+# =========================================================
+
+class RobustnessTests(HeritageTestData):
+
+    def post_artisan(self, body, **kwargs):
+        self.client.force_authenticate(self.owner)
+        return self.client.post("/api/heritage/artisans/", body, **kwargs)
+
+    def test_wrong_geometry_type_is_rejected(self):
+        body = artisan_feature(-6.26, 53.345)
+        body["geometry"] = {
+            "type": "LineString",
+            "coordinates": [[-6.26, 53.345], [-6.25, 53.346]],
+        }
+        response = self.post_artisan(body, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("location", str(response.data))
+
+    def test_missing_geometry_is_rejected(self):
+        body = artisan_feature(-6.26, 53.345)
+        del body["geometry"]
+        self.assertEqual(self.post_artisan(body, format="json").status_code, 400)
+
+    def test_garbage_coordinates_are_rejected(self):
+        body = artisan_feature(-6.26, 53.345)
+        body["geometry"] = {"type": "Point", "coordinates": ["abc", None]}
+        self.assertEqual(self.post_artisan(body, format="json").status_code, 400)
+
+    def test_swapped_lat_lng_is_rejected(self):
+        # Common mistake: [lat, lng] instead of GeoJSON's [lng, lat].
+        response = self.post_artisan(
+            artisan_feature(53.345, -6.26), format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_broken_json_returns_400_not_500(self):
+        response = self.post_artisan(
+            '{"type": "Feature", "geometry": ',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_self_intersecting_region_is_rejected(self):
+        self.client.force_authenticate(self.staff)
+        bow_tie = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [-6.27, 53.34], [-6.25, 53.36], [-6.25, 53.34],
+                    [-6.27, 53.36], [-6.27, 53.34],
+                ]],
+            },
+            "properties": {"name": "Bow tie", "region_type": "Test"},
+        }
+        response = self.client.post(
+            "/api/heritage/regions/", bow_tie, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid geometry", str(response.data))
+
+    def test_route_must_be_a_line_with_two_points(self):
+        self.client.force_authenticate(self.staff)
+        body = {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [-6.26, 53.345]},
+            "properties": {"name": "Not a line", "route_type": "WALKING"},
+        }
+        response = self.client.post(
+            "/api/heritage/routes/", body, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_staff_can_create_valid_route_and_length_is_calculated(self):
+        self.client.force_authenticate(self.staff)
+        body = {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[-6.271, 53.344], [-6.259, 53.344]],
+            },
+            "properties": {"name": "New route", "route_type": "CRAFT"},
+        }
+        response = self.client.post(
+            "/api/heritage/routes/", body, format="json"
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertAlmostEqual(
+            float(response.data["properties"]["distance_km"]), 0.80,
+            delta=0.05,
+        )
+
+    def test_radius_query_with_no_results_returns_empty_list(self):
+        # Middle of the Atlantic - valid input, nothing nearby.
+        response = self.client.get(
+            "/api/heritage/artisans/within_radius/?lat=50&lng=-20&radius=5"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 0)
+
+    def test_nearest_with_no_artisans_returns_404(self):
+        ArtisanLocation.objects.all().delete()
+        response = self.client.get(
+            "/api/heritage/artisans/nearest/?lat=53.35&lng=-6.26"
+        )
+        self.assertEqual(response.status_code, 404)
 
 
 # =========================================================

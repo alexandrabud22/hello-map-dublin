@@ -7,10 +7,11 @@ HeritageConnect views (the "controller" layer of the MVC pattern).
 """
 
 import json
+import math
 
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.db.models.functions import Distance, GeometryDistance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.db import connection
@@ -79,6 +80,21 @@ def get_point_from_params(params):
     return lat, lng, Point(lng, lat, srid=4326)
 
 
+def degrees_covering_km(km, latitude):
+    """
+    Convert a distance in km to a search box size in degrees that is
+    guaranteed to cover it at this latitude. One degree of longitude
+    gets shorter towards the poles (111.32 km x cos(latitude)), so we
+    use the longitude value, which is always the larger number.
+
+    Used as a fast, index-friendly pre-filter: ST_DWithin on the
+    geometry column can use its GiST index, the exact distance check
+    then runs only on the few rows that pass.
+    """
+    km_per_degree = 111.32 * max(math.cos(math.radians(latitude)), 0.01)
+    return km / km_per_degree
+
+
 def bad_request(message):
     return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -137,7 +153,8 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def within_radius(self, request):
         """
-        Spatial query 1 - PROXIMITY / RADIUS SEARCH (spherical distance).
+        Spatial query 1 - PROXIMITY / RADIUS SEARCH
+        (ST_DWithin index pre-filter + ST_DistanceSphere exact check).
 
         Return artisans within `radius` km of a point, nearest first.
 
@@ -154,6 +171,14 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
 
         artisans = (
             self.get_queryset()
+            # Step 1 - index-assisted pre-filter (GiST, degrees box).
+            .filter(
+                location__dwithin=(
+                    user_point,
+                    degrees_covering_km(radius, lat),
+                )
+            )
+            # Step 2 - exact distance on the Earth's surface (metres).
             .filter(location__distance_lte=(user_point, D(km=radius)))
             .annotate(distance=Distance("location", user_point))
             .order_by("distance")
@@ -173,7 +198,7 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def nearest(self, request):
         """
-        Spatial query 2 - NEAREST NEIGHBOUR (ORDER BY distance).
+        Spatial query 2 - NEAREST NEIGHBOUR (KNN "<->" + exact distance).
 
         Return the single closest artisan to a point.
 
@@ -185,8 +210,18 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
         except InvalidParameter as error:
             return bad_request(str(error))
 
+        # Step 1 - K-nearest-neighbour search with the PostGIS "<->"
+        # operator (GeometryDistance), which walks the GiST index
+        # instead of measuring every row. It ranks in degrees, so take
+        # a few candidates...
+        candidates = (
+            self.get_queryset()
+            .order_by(GeometryDistance("location", user_point))[:5]
+        )
+        # Step 2 - ...and pick the truly closest one in metres.
         artisan = (
             self.get_queryset()
+            .filter(id__in=[c.id for c in candidates])
             .annotate(distance=Distance("location", user_point))
             .order_by("distance")
             .first()
@@ -349,7 +384,9 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
         route_table = HeritageRoute._meta.db_table
 
         # Casting to ::geography makes PostGIS measure in metres on the
-        # Earth's surface instead of in degrees. Values are passed as
+        # Earth's surface instead of in degrees. Migration 0003 adds
+        # GiST indexes on (location::geography) and (path::geography),
+        # so ST_DWithin here can use an index. Values are passed as
         # query parameters (%s), never pasted into the SQL string, which
         # prevents SQL injection.
         with connection.cursor() as cursor:

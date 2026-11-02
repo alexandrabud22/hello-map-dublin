@@ -89,10 +89,17 @@ EPSG:2157, which is the official metric projection for Ireland.
 | Index | Type | Why |
 |---|---|---|
 | `boundary`, `location`, `path` | **GiST** (created by GeoDjango, `spatial_index=True`) | Speeds up spatial filters such as `ST_Within`, `ST_Intersects` and bounding-box checks |
+| `(location::geography)`, `(path::geography)` | **GiST expression indexes** (migration `0003`) | Lets the metre-based buffer query `ST_DWithin(…::geography, …)` use an index |
 | `owner_id`, `region_id` | B-tree (created for every foreign key) | Fast joins and "artisans in region X" lookups |
 | `id` | B-tree (primary key) | |
 
-You can list the indexes yourself:
+You can list the indexes and see the query plans:
+
+```bash
+docker compose exec web python manage.py explain_spatial_queries
+```
+
+Or list the indexes directly:
 
 ```bash
 docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
@@ -105,8 +112,8 @@ docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
 
 | # | Feature | PostGIS functions | Endpoint |
 |---|---|---|---|
-| 1 | Proximity – artisans within *r* km | `ST_DistanceSphere` | `GET /api/heritage/artisans/within_radius/` |
-| 2 | Nearest artisan | `ST_DistanceSphere` + `ORDER BY` | `GET /api/heritage/artisans/nearest/` |
+| 1 | Proximity – artisans within *r* km | `ST_DWithin` (GiST pre-filter) + `ST_DistanceSphere` | `GET /api/heritage/artisans/within_radius/` |
+| 2 | Nearest artisan | KNN `<->` (GiST-ordered) + `ST_DistanceSphere` | `GET /api/heritage/artisans/nearest/` |
 | 3 | Containment – artisans in a region | `ST_Within` | `GET /api/heritage/regions/{id}/artisans/` |
 | 4 | Intersection – routes crossing a region | `ST_Intersects` | `GET /api/heritage/routes/intersecting_region/` |
 | 5 | Buffer – artisans within *d* m of a route | `ST_Buffer`, `ST_DWithin`, `ST_Distance` (geography) | `GET /api/heritage/routes/{id}/artisans_nearby/` |
@@ -128,6 +135,7 @@ docker compose exec web python manage.py load_heritage_data
 |---|---|
 | `0001_initial.py` | Creates the three spatial tables |
 | `0002_artisanlocation_owner.py` | Adds `owner_id` so artisans belong to users |
+| `0003_geography_spatial_indexes.py` | Adds GiST indexes on the geography casts used by the buffer query |
 
 Data is stored in the Docker volume `postgis_data`, so it survives container restarts
 (`docker compose down` / `up`). Only `docker compose down -v` deletes it.

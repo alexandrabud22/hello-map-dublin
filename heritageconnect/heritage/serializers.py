@@ -41,6 +41,23 @@ def validate_geometry_is_valid(geometry):
     return geometry
 
 
+def validate_geometry_type(geometry, expected_type):
+    """
+    The database columns only accept one geometry type each
+    (Point / Polygon / LineString). Check it here so a wrong type gives
+    a clear 400 error instead of a database error.
+    """
+    if geometry is None:
+        raise serializers.ValidationError("A geometry is required.")
+    if geometry.geom_type != expected_type:
+        raise serializers.ValidationError(
+            f"Geometry must be a {expected_type}, not a {geometry.geom_type}."
+        )
+    if geometry.srid not in (None, 4326):
+        geometry.transform(4326)
+    return geometry
+
+
 class CulturalRegionSerializer(GeoFeatureModelSerializer):
     artisan_count = serializers.SerializerMethodField()
 
@@ -64,6 +81,7 @@ class CulturalRegionSerializer(GeoFeatureModelSerializer):
         return validate_not_blank(value, "Region name")
 
     def validate_boundary(self, value):
+        validate_geometry_type(value, "Polygon")
         return validate_geometry_is_valid(value)
 
 
@@ -121,8 +139,7 @@ class ArtisanLocationSerializer(GeoFeatureModelSerializer):
         return value
 
     def validate_location(self, value):
-        if value is None:
-            raise serializers.ValidationError("A location is required.")
+        validate_geometry_type(value, "Point")
 
         lng, lat = value.x, value.y
         bounds = IRELAND_BOUNDS
@@ -178,6 +195,7 @@ class HeritageRouteSerializer(GeoFeatureModelSerializer):
         return validate_not_blank(value, "Route name")
 
     def validate_path(self, value):
+        validate_geometry_type(value, "LineString")
         validate_geometry_is_valid(value)
         if value is not None and value.num_points < 2:
             raise serializers.ValidationError(

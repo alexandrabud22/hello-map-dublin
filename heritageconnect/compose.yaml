@@ -9,10 +9,19 @@
 # Public ports on the host: 8000 (Nginx) and 5050 (PgAdmin) only.
 #
 # All settings come from the .env file (see .env.example).
+#
+# This file is the PRODUCTION-STYLE setup: the code is baked into the
+# image (no source-code bind mounts). For development with live code
+# reload, add the override file:
+#     docker compose -f compose.yaml -f compose.dev.yaml up -d
 
 services:
   db:
     image: postgis/postgis:16-3.4
+    # The official PostGIS image is only published for amd64; on Apple
+    # Silicon Docker runs it through emulation. Declaring the platform
+    # makes this explicit and removes the start-up warning.
+    platform: linux/amd64
     container_name: heritage_db
     restart: unless-stopped
     environment:
@@ -57,8 +66,6 @@ services:
     # Start-up (migrate, collectstatic, gunicorn) is handled by
     # docker/entrypoint.sh - see the Dockerfile ENTRYPOINT.
     volumes:
-      # Source code mounted for development (edits apply without rebuild)
-      - .:/app
       # Collected static files, shared with Nginx
       - static_data:/app/staticfiles
     # Gunicorn is NOT published to the host - only Nginx can reach it.
@@ -97,9 +104,7 @@ services:
       - "8000:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # Project static files (served first, read-only)
-      - ./static:/srv/src/static:ro
-      # Collected static files from the web container (admin, DRF, etc.)
+      # Collected static files from the web container (CSS, JS, admin)
       - static_data:/srv/collected/static:ro
     networks:
       heritage_net:
