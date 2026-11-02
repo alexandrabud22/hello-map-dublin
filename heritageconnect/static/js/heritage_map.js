@@ -159,6 +159,35 @@ function setStatus(message) {
 
 
 /*
+ * Load every page of a paginated GeoJSON list endpoint.
+ * The API returns 20 items per page plus a "next" link; this follows
+ * the links until all features have been collected.
+ */
+async function fetchAllFeatures(url, errorMessage) {
+    const allFeatures = [];
+    let nextUrl = url;
+
+    while (nextUrl) {
+        const response = await fetch(nextUrl);
+
+        if (!response.ok) {
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+
+        allFeatures.push(
+            ...(data.results?.features || data.features || [])
+        );
+
+        nextUrl = data.next;
+    }
+
+    return allFeatures;
+}
+
+
+/*
  * Escape text before inserting it into HTML.
  * Artisan details are typed by users, so without this a name like
  * <img src=x onerror=alert(1)> would run as code (stored XSS).
@@ -528,30 +557,10 @@ async function loadArtisans() {
             "Loading artisans..."
         );
 
-        // The API is paginated (20 per page), so follow the "next"
-        // links until every page has been loaded.
-        const allFeatures = [];
-        let nextUrl = "/api/heritage/artisans/";
-
-        while (nextUrl) {
-            const response = await fetch(nextUrl);
-
-            if (!response.ok) {
-                throw new Error(
-                    "Unable to load artisans."
-                );
-            }
-
-            const data = await response.json();
-
-            allFeatures.push(
-                ...(data.results?.features || data.features || [])
-            );
-
-            nextUrl = data.next;
-        }
-
-        artisanData = allFeatures;
+        artisanData = await fetchAllFeatures(
+            "/api/heritage/artisans/",
+            "Unable to load artisans."
+        );
 
         displayArtisans(
             artisanData
@@ -576,24 +585,10 @@ async function loadArtisans() {
 
 async function loadRegions() {
     try {
-        const response =
-            await fetch(
-                "/api/heritage/regions/"
-            );
-
-        if (!response.ok) {
-            throw new Error(
-                "Unable to load regions."
-            );
-        }
-
-        const data =
-            await response.json();
-
-        const features =
-            data.results?.features ||
-            data.features ||
-            [];
+        const features = await fetchAllFeatures(
+            "/api/heritage/regions/",
+            "Unable to load regions."
+        );
 
         populateRegionSelects(features);
 
@@ -655,24 +650,10 @@ async function loadRegions() {
 
 async function loadRoutes() {
     try {
-        const response =
-            await fetch(
-                "/api/heritage/routes/"
-            );
-
-        if (!response.ok) {
-            throw new Error(
-                "Unable to load routes."
-            );
-        }
-
-        const data =
-            await response.json();
-
-        const features =
-            data.results?.features ||
-            data.features ||
-            [];
+        const features = await fetchAllFeatures(
+            "/api/heritage/routes/",
+            "Unable to load routes."
+        );
 
         routeLayer.clearLayers();
 
@@ -1273,6 +1254,8 @@ function openArtisanModal() {
         .classList
         .add("open");
 
+    activateModalFocus();
+
     setTimeout(
         () => {
             initialiseArtisanLocationMap();
@@ -1286,6 +1269,8 @@ function closeArtisanModal() {
     artisanModal
         .classList
         .remove("open");
+
+    deactivateModalFocus();
 
     artisanFormMessage
         .textContent =
@@ -1704,6 +1689,8 @@ function openEditArtisanModal(
     artisanModal
         .classList
         .add("open");
+
+    activateModalFocus();
 
     updateArtisanLocationDisplay();
 
@@ -2324,16 +2311,18 @@ artisanForm.addEventListener(
 );
 
 
-/* Prevent Enter from submitting form */
+/*
+ * Stop Enter in a text field from submitting the form by accident
+ * (e.g. while typing an address). Enter/Space still work normally on
+ * buttons, selects and the textarea, so keyboard users can operate
+ * Cancel and Save.
+ */
 artisanForm.addEventListener(
     "keydown",
     function (event) {
         if (
-            event.key ===
-                "Enter" &&
-            event.target
-                .tagName !==
-                "TEXTAREA"
+            event.key === "Enter" &&
+            event.target.tagName === "INPUT"
         ) {
             event.preventDefault();
         }
@@ -2389,6 +2378,73 @@ artisanAddressInput.addEventListener(
         }
     }
 );
+
+
+/* =========================================================
+   DIALOG ACCESSIBILITY - focus management + focus trap
+========================================================= */
+
+let focusBeforeModal = null;
+
+const FOCUSABLE_SELECTOR = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled]):not([type='hidden'])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function getModalFocusableElements() {
+    return [...artisanModal.querySelectorAll(FOCUSABLE_SELECTOR)]
+        .filter((element) => element.offsetParent !== null);
+}
+
+function activateModalFocus() {
+    // Remember where the user was, so focus can return there on close.
+    focusBeforeModal = document.activeElement;
+
+    artisanModal.setAttribute("aria-hidden", "false");
+
+    // Move focus into the dialog (first form field).
+    setTimeout(() => {
+        document.getElementById("artisanBusinessName")?.focus();
+    }, 50);
+}
+
+function deactivateModalFocus() {
+    artisanModal.setAttribute("aria-hidden", "true");
+
+    if (focusBeforeModal && typeof focusBeforeModal.focus === "function") {
+        focusBeforeModal.focus();
+    }
+
+    focusBeforeModal = null;
+}
+
+// Keep Tab / Shift+Tab inside the open dialog.
+artisanModal.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab" || !artisanModal.classList.contains("open")) {
+        return;
+    }
+
+    const focusable = getModalFocusableElements();
+
+    if (focusable.length === 0) {
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+});
 
 
 const modalBackdrop =

@@ -589,12 +589,18 @@
 <div
     id="artisanModal"
     class="artisan-modal"
+    aria-hidden="true"
 >
 
     <div class="artisan-modal-backdrop"></div>
 
 
-    <div class="artisan-modal-content">
+    <div
+        class="artisan-modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="artisanModalTitle"
+    >
 
 
         <!-- MODAL HEADER -->

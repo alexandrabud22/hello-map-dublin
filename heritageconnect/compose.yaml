@@ -74,6 +74,7 @@ services:
       DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      DJANGO_SECURE_COOKIES: ${DJANGO_SECURE_COOKIES:-False}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-HeritageDemo2026!}
     networks:
       heritage_net:

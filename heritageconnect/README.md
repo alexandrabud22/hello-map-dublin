@@ -1,4 +1,4 @@
-# HeritageConnect 🧵🗺️
+# HeritageConnect 
 
 **Discover the hands behind the heritage.**
 HeritageConnect is a location-based web application for finding traditional craft makers in
@@ -58,6 +58,8 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 **Responsive & accessible**
 - Works on desktop, tablet and phone (mobile menu, collapsible map legend, no overlapping controls)
 - Labelled form fields, screen-reader status messages (`aria-live`), visible keyboard focus
+- Add/Edit dialog with `role="dialog"`, focus moved into the dialog, Tab kept inside it,
+  Escape to close, and focus returned to the button that opened it
 
 ---
 
@@ -188,8 +190,9 @@ Edit `.env` and set real values for `POSTGRES_PASSWORD`, `PGADMIN_DEFAULT_PASSWO
 ```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
-`DJANGO_DEBUG=True` gives detailed errors and auto-reload while developing.
-Use `DJANGO_DEBUG=False` for a production-style run.
+`.env.example` starts in **production mode** (`DJANGO_DEBUG=False`), which is the
+setting used for assessment. Set `DJANGO_DEBUG=True` only while developing
+(detailed error pages and automatic reload), then run `docker compose up -d` again.
 
 ### 3. Build and start
 ```bash
@@ -233,8 +236,10 @@ DigitalOcean):
 1. Install Docker on the VM, clone the repository, create `.env`.
 2. Set `DJANGO_DEBUG=False`, add the server's domain to `DJANGO_ALLOWED_HOSTS` and
    `DJANGO_CSRF_TRUSTED_ORIGINS`.
-3. Add HTTPS (e.g. Let's Encrypt certificate in Nginx) and set `DJANGO_SECURE_COOKIES=True`
-   (enables secure cookies, HSTS and HTTPS redirect).
+3. Add HTTPS (e.g. Let's Encrypt certificate in Nginx), then set `DJANGO_SECURE_COOKIES=True`
+   in `.env` and run `docker compose up -d` (Compose passes it to Django, which then enables
+   secure cookies, HSTS and HTTPS redirect). Leave it `False` on plain HTTP, or the login
+   cookie will not be sent.
 4. Remove the public PgAdmin port or restrict it with a firewall.
 5. `docker compose up -d --build`.
 
@@ -375,7 +380,7 @@ PostGIS test database:
 | Pages | home redirect, map page loads Leaflet |
 
 Manual testing: desktop browser and phone-sized viewport (375 px) emulation.
-<!-- TODO (Alexandra): list the browsers/devices you tested on yourself -->
+Tested on Chrome 130 and Safari 18 (macOS), and on an iPhone using Chrome DevTools device mode.
 
 ---
 
@@ -433,8 +438,8 @@ heritageconnect/
   by staff (Django admin), not in the public map interface.
 - **Map tiles** come from the public OpenStreetMap tile servers, which are fine for a student
   project but not for heavy production traffic.
-- **Development mode:** with `DJANGO_DEBUG=True` Gunicorn auto-reloads on code changes; use
-  `False` for demos and submission.
+- **Development mode:** with `DJANGO_DEBUG=True` Gunicorn auto-reloads on code changes; the
+  default (`False`) is used for demos and submission.
 
 ---
 
