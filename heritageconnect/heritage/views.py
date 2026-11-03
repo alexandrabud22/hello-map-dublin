@@ -55,10 +55,12 @@ def get_point_from_params(params):
 
     lat = get_float_param(params, "lat", -90, 90)
     lng = get_float_param(params, "lng", -180, 180)
+    # Points use longitude first, then latitude.
     return lat, lng, Point(lng, lat, srid=4326)
 
 def degrees_covering_km(km, latitude):
 
+    # A degree of longitude covers less ground further north.
     km_per_degree = 111.32 * max(math.cos(math.radians(latitude)), 0.01)
     return km / km_per_degree
 
@@ -104,6 +106,7 @@ def register_view(request):
 
     return render(request, "registration/register.html", {"form": form})
 
+# ModelViewSet provides the create, read, update and delete endpoints.
 class ArtisanLocationViewSet(viewsets.ModelViewSet):
 
     queryset = (
@@ -390,6 +393,7 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
             .select_related("region", "owner")
             .in_bulk(distances.keys())
         )
+        # Keep the workshops in the distance order returned by the query.
         artisans = [artisans_by_id[artisan_id] for artisan_id, _ in rows]
 
         serializer = ArtisanLocationSerializer(

@@ -766,6 +766,7 @@ function updateFilterNote(shown, total) {
         : "";
 }
 
+// Keep the current search results so filters work on the same set of workshops.
 function showResults(features) {
     baseFeatures = features;
 
@@ -1431,6 +1432,7 @@ async function geocodeArtisanAddress() {
             .map((part) => part.trim())
             .filter(Boolean);
 
+        // Try a shorter address if the full address is not found.
         const candidates = [
             address,
             address.replace(/^\s*\d+[a-zA-Z]?\s+/, ""),
@@ -1464,6 +1466,7 @@ async function geocodeArtisanAddress() {
                 break;
             }
 
+            // Wait a second before trying another address with Nominatim.
             await new Promise((resolve) => setTimeout(resolve, 1000));
         }
 

@@ -22,6 +22,7 @@ def validate_not_blank(value, field_label):
 
 def validate_geometry_is_valid(geometry):
 
+    # Reject shapes with problems such as crossing polygon edges.
     if geometry is not None and not geometry.valid:
         raise serializers.ValidationError(
             f"Invalid geometry: {geometry.valid_reason}"
@@ -140,6 +141,7 @@ class ArtisanLocationSerializer(GeoFeatureModelSerializer):
             "location", getattr(self.instance, "location", None)
         )
 
+        # A chosen region must actually contain the workshop.
         if region and location and not region.boundary.contains(location):
             raise serializers.ValidationError(
                 {"region": f"This location is not inside {region.name}."}

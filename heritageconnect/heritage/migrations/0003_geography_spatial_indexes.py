@@ -6,6 +6,7 @@ class Migration(migrations.Migration):
         ("heritage", "0002_artisanlocation_owner"),
     ]
 
+    # These indexes support the route searches that measure distance in metres.
     operations = [
         migrations.RunSQL(
             sql=(

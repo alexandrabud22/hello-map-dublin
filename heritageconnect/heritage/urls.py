@@ -7,6 +7,7 @@ from .views import (
     HeritageRouteViewSet,
 )
 
+# The router creates the usual CRUD URLs for each resource.
 router = DefaultRouter()
 router.register("artisans", ArtisanLocationViewSet, basename="artisan")
 router.register("regions", CulturalRegionViewSet, basename="region")

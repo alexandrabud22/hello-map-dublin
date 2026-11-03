@@ -9,6 +9,7 @@ class CulturalRegion(models.Model):
     region_type = models.CharField(max_length=100)
     description = models.TextField(blank=True)
 
+    # Store the area boundary in longitude and latitude.
     boundary = models.PolygonField(srid=4326, spatial_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
