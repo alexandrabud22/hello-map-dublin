@@ -1583,37 +1583,57 @@ async function geocodeArtisanAddress() {
                 "success"
             );
 
-        const query =
-            encodeURIComponent(
-                `${address}, Ireland`
-            );
+        // Try the full address first, then simpler versions, because
+        // OpenStreetMap does not contain every house number or terrace.
+        // e.g. "9 Example Terrace, Blanchardstown, Dublin" ->
+        //      "Example Terrace, Blanchardstown, Dublin" ->
+        //      "Blanchardstown, Dublin" -> "Dublin"
+        const parts = address
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean);
 
-        const response =
-            await fetch(
+        const candidates = [
+            address,
+            address.replace(/^\s*\d+[a-zA-Z]?\s+/, ""),
+            parts.slice(1).join(", "),
+            parts.slice(-1).join(", "),
+        ].filter(
+            (candidate, index, list) =>
+                candidate && list.indexOf(candidate) === index
+        );
+
+        let match = null;
+        let usedCandidate = "";
+
+        for (const candidate of candidates) {
+            const query = encodeURIComponent(`${candidate}, Ireland`);
+
+            const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ie&q=${query}`,
-                {
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
-                }
+                { headers: { "Accept": "application/json" } }
             );
 
-        if (!response.ok) {
-            throw new Error(
-                "Address search failed."
-            );
+            if (!response.ok) {
+                throw new Error("Address search failed.");
+            }
+
+            const results = await response.json();
+
+            if (results.length > 0) {
+                match = results[0];
+                usedCandidate = candidate;
+                break;
+            }
+
+            // Nominatim usage policy: max. 1 request per second.
+            await new Promise((resolve) => setTimeout(resolve, 1000));
         }
 
-        const results =
-            await response.json();
-
-        if (
-            results.length === 0
-        ) {
+        if (!match) {
             artisanFormMessage
                 .textContent =
-                "Address not found. Choose the location manually on the map.";
+                "Address not found. Click the map to place the artisan.";
 
             artisanFormMessage
                 .classList
@@ -1622,15 +1642,9 @@ async function geocodeArtisanAddress() {
             return;
         }
 
-        const lat =
-            Number(
-                results[0].lat
-            );
-
-        const lng =
-            Number(
-                results[0].lon
-            );
+        const exact = usedCandidate === address;
+        const lat = Number(match.lat);
+        const lng = Number(match.lon);
 
         selectArtisanFormLocation(
             lat,
@@ -1640,12 +1654,14 @@ async function geocodeArtisanAddress() {
         artisanLocationMap
             .setView(
                 [lat, lng],
-                16
+                exact ? 17 : 15
             );
 
         artisanFormMessage
             .textContent =
-            "Address located on the map.";
+            exact
+                ? "Address located on the map."
+                : `Exact address not in OpenStreetMap - placed near "${usedCandidate}". Click the map to adjust the pin.`;
 
         artisanFormMessage
             .classList
