@@ -412,8 +412,23 @@ PostGIS test database:
 | Spatial queries | radius (incl. ordering), nearest, containment, intersection, buffer (200 m vs 1 km) |
 | Pages | home redirect, map page loads Leaflet |
 
-Manual testing: desktop browser and phone-sized viewport (375 px) emulation.
-Tested on Chrome 130 and Safari 18 (macOS), and on an iPhone using Chrome DevTools device mode.
+### Manual testing (3 November 2026)
+
+Tested in **Google Chrome** and **Safari** on macOS, and in **Chrome DevTools device mode**
+(iPhone-sized viewport), with the production configuration (`DJANGO_DEBUG=False`).
+
+| Check | How | Result |
+|---|---|---|
+| Log in as `demo`, add, edit and delete an artisan | Manual (Chrome) | ✅ |
+| Craft filter combined with Search Nearby | Manual (Chrome) | ✅ |
+| Route → "within 200 m": buffer corridor and distances | Manual (Chrome) | ✅ |
+| Clicking an artisan card scrolls to the map and opens its popup | Manual (Chrome) | ✅ |
+| Site loads and works in Safari | Manual (Safari) | ✅ |
+| Mobile layout and ☰ menu | Manual (Chrome device mode) | ✅ |
+| Lighthouse accessibility (desktop) | Chrome Lighthouse | ✅ 100 |
+| Data persists after `docker compose down` / `up` | Manual (terminal) | ✅ |
+| Dialog keyboard support (focus on open, Tab trap, Escape, focus return) | Scripted browser check | ✅ |
+| Permissions, validation and all spatial queries | Automated tests (33) | ✅ |
 
 ---
 
