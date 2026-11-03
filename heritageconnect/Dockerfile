@@ -25,6 +25,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the project
 COPY . .
 
+# Make all project files readable by the non-root user below, no matter
+# what permissions the files had on the host computer (a file that is
+# owner-only on the host would otherwise cause "Permission denied").
+RUN chmod -R a+rX /app
+
 # Run as a non-root user (security best practice).
 # /app/staticfiles is created here so the shared static volume
 # is owned by this user when Docker first creates it.
