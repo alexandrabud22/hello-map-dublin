@@ -1,19 +1,3 @@
-"""
-Load HeritageConnect sample data.
-
-    docker compose exec web python manage.py load_heritage_data
-
-What it does:
-  * Replaces all cultural regions and heritage routes.
-  * Replaces SAMPLE artisans only - rows created by this command
-    (no owner, and a name from the ARTISANS list below).
-    Every other artisan (created by users) is kept.
-  * Re-links every artisan to the region that spatially contains it.
-
-All people and businesses below are FICTIONAL sample data placed on
-real Dublin streets. Coordinates are WGS84 (longitude, latitude).
-"""
-
 import json
 from pathlib import Path
 
@@ -22,7 +6,6 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from heritage.models import ArtisanLocation, CulturalRegion, HeritageRoute
-
 
 REGIONS = [
     {
@@ -75,31 +58,23 @@ REGIONS = [
     },
 ]
 
-
-# Heritage routes follow real streets. The geometry comes from
-# heritage/data/heritage_routes.geojson: walking routes between the
-# artisans on each trail, calculated with OSRM on OpenStreetMap data
-# (c) OpenStreetMap contributors, ODbL, and simplified to about 2 m.
 ROUTES_FILE = (
     Path(__file__).resolve().parents[2] / "data" / "heritage_routes.geojson"
 )
-
 
 def load_route_features():
     with open(ROUTES_FILE, encoding="utf-8") as file:
         return json.load(file)["features"]
 
-
-# (name, artisan, craft, address, lng, lat, hours, description)
 ARTISANS = [
-    # Temple Bar
+
     ("Temple Bar Pottery Studio", "Aoife Murphy", "POTTERY",
      "Temple Bar, Dublin 2", -6.2675, 53.3455, "10:00 - 18:00",
      "Traditional handmade pottery and ceramic workshops."),
     ("Cow's Lane Print Studio", "Ciara Byrne", "PAINTING",
      "Cow's Lane, Dublin 8", -6.2695, 53.3448, "11:00 - 17:00",
      "Hand-printed Irish landscapes and Celtic designs."),
-    # The Liberties
+
     ("Thomas Street Textiles", "Orla Doyle", "TEXTILES",
      "Thomas Street, Dublin 8", -6.2815, 53.3433, "09:30 - 17:00",
      "Traditional Irish tweed and woven textiles."),
@@ -109,7 +84,7 @@ ARTISANS = [
     ("Coombe Leather Works", "Padraig Nolan", "LEATHER",
      "The Coombe, Dublin 8", -6.2768, 53.3393, "10:00 - 17:30",
      "Hand-stitched leather goods using traditional methods."),
-    # Smithfield & Stoneybatter
+
     ("Dublin Weaving Workshop", "Niamh Kelly", "WEAVING",
      "Smithfield, Dublin 7", -6.2785, 53.3488, "09:30 - 17:30",
      "Traditional textile weaving and craft demonstrations."),
@@ -119,14 +94,14 @@ ARTISANS = [
     ("Stoneybatter Silversmiths", "Grainne Ryan", "JEWELLERY",
      "Manor Street, Dublin 7", -6.2848, 53.3527, "10:00 - 18:00",
      "Silver jewellery inspired by Celtic knotwork."),
-    # Docklands
+
     ("Grand Canal Glass & Clay", "Eoin Fitzgerald", "POTTERY",
      "Grand Canal Dock, Dublin 2", -6.2385, 53.3412, "10:00 - 16:00",
      "Contemporary ceramics and studio glass."),
     ("North Wall Sail & Canvas", "Siobhan Keane", "TEXTILES",
      "North Wall Quay, Dublin 1", -6.2330, 53.3470, "09:00 - 17:00",
      "Canvas bags and goods made with old sail-making skills."),
-    # Outside every region ("Independent artisan")
+
     ("Portobello Bookbinders", "Liam Brennan", "OTHER",
      "Portobello, Dublin 8", -6.2650, 53.3315, "11:00 - 17:00",
      "Hand-bound notebooks and book restoration."),
@@ -135,7 +110,6 @@ ARTISANS = [
      "Stained glass panels in traditional Irish styles."),
 ]
 
-
 class Command(BaseCommand):
     help = "Load HeritageConnect sample regions, routes and artisans."
 
@@ -143,8 +117,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Loading HeritageConnect sample data...")
 
-        # Only delete rows this command created earlier: no owner and a
-        # name from the sample list. User-created artisans are never deleted.
         sample_names = [artisan[0] for artisan in ARTISANS]
         deleted_artisans, _ = (
             ArtisanLocation.objects
@@ -155,7 +127,7 @@ class Command(BaseCommand):
         CulturalRegion.objects.all().delete()
 
         for region in REGIONS:
-            ring = region["boundary"] + [region["boundary"][0]]  # close ring
+            ring = region["boundary"] + [region["boundary"][0]]
             boundary = Polygon(ring, srid=4326)
             if not boundary.valid:
                 raise ValueError(f"{region['name']}: {boundary.valid_reason}")
@@ -169,7 +141,7 @@ class Command(BaseCommand):
 
         for feature in load_route_features():
             properties = feature["properties"]
-            # distance_km is calculated in HeritageRoute.save()
+
             HeritageRoute.objects.create(
                 name=properties["name"],
                 route_type=properties["route_type"],
@@ -181,7 +153,7 @@ class Command(BaseCommand):
 
         for (name, artisan, craft, address, lng, lat,
              hours, description) in ARTISANS:
-            # region is found automatically in ArtisanLocation.save()
+
             ArtisanLocation.objects.create(
                 name=name,
                 artisan_name=artisan,
@@ -192,7 +164,6 @@ class Command(BaseCommand):
                 description=description,
             )
 
-        # Re-link all other (user-created) artisans to the new regions.
         relinked = 0
         for artisan in ArtisanLocation.objects.exclude(
             owner__isnull=True, name__in=sample_names

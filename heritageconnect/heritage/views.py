@@ -1,11 +1,3 @@
-"""
-HeritageConnect views (the "controller" layer of the MVC pattern).
-
-- register_view: HTML view for creating a user account.
-- ArtisanLocationViewSet, CulturalRegionViewSet, HeritageRouteViewSet:
-  REST API endpoints (CRUD) plus custom spatial query endpoints.
-"""
-
 import json
 import math
 
@@ -32,29 +24,16 @@ from .serializers import (
     HeritageRouteSerializer,
 )
 
-
-# Largest search radius the API accepts. Keeps queries fast and
-# stops someone asking for "every artisan within 10,000 km".
 MAX_RADIUS_KM = 50
 
-# Limits for the route buffer query (metres).
 DEFAULT_BUFFER_M = 200
 MAX_BUFFER_M = 2000
 
-
-# =========================================================
-# Query-parameter validation helpers
-# =========================================================
-
 class InvalidParameter(ValueError):
-    """Raised when a query parameter is missing or out of range."""
-
+    pass
 
 def get_float_param(params, name, minimum, maximum):
-    """
-    Read a query parameter as a float and check it is within
-    [minimum, maximum]. Raises InvalidParameter with a clear message.
-    """
+
     raw_value = params.get(name)
 
     if raw_value in (None, ""):
@@ -72,32 +51,17 @@ def get_float_param(params, name, minimum, maximum):
 
     return value
 
-
 def get_point_from_params(params):
-    """Build a WGS84 Point from ?lat=..&lng=.. query parameters."""
+
     lat = get_float_param(params, "lat", -90, 90)
     lng = get_float_param(params, "lng", -180, 180)
-
-    # GEOS uses (x, y) = (longitude, latitude) order.
     return lat, lng, Point(lng, lat, srid=4326)
 
-
 def degrees_covering_km(km, latitude):
-    """
-    Convert a distance in km to a search box size in degrees that is
-    guaranteed to cover it at this latitude. One degree of longitude
-    gets shorter towards the poles (111.32 km x cos(latitude)), so we
-    use the longitude value, which is always the larger number.
 
-    Used as a fast, index-friendly pre-filter: ST_DWithin on the
-    geometry column can use its GiST index, the exact distance check
-    then runs only on the few rows that pass.
-    """
     km_per_degree = 111.32 * max(math.cos(math.radians(latitude)), 0.01)
     return km / km_per_degree
 
-
-# ---- OpenAPI (Swagger) documentation of the query parameters ----------
 LAT_PARAM = OpenApiParameter(
     "lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True,
     description="Latitude in WGS84 (-90 to 90), e.g. 53.3498",
@@ -121,14 +85,8 @@ FILTER_PARAMS = [
     ),
 ]
 
-
 def bad_request(message):
     return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
-
-
-# =========================================================
-# Account registration (HTML view)
-# =========================================================
 
 def register_view(request):
     if request.user.is_authenticated:
@@ -146,18 +104,7 @@ def register_view(request):
 
     return render(request, "registration/register.html", {"form": form})
 
-
-# =========================================================
-# Artisan locations (Point geometry)
-# =========================================================
-
 class ArtisanLocationViewSet(viewsets.ModelViewSet):
-    """
-    CRUD for artisan locations.
-
-    Anyone can read. Logged-in users can create artisans, and only
-    the owner (or a staff user) can edit or delete them.
-    """
 
     queryset = (
         ArtisanLocation.objects
@@ -167,16 +114,14 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
     serializer_class = ArtisanLocationSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
-    # ?search=pottery  ?craft_type=WEAVING  ?region=2  ?ordering=-created_at
     search_fields = [
         "name", "artisan_name", "address", "description", "craft_type",
     ]
     filterset_fields = ["craft_type", "region", "owner"]
     ordering_fields = ["name", "created_at", "craft_type"]
 
+    # Take the owner from the login session, not the submitted form.
     def perform_create(self, serializer):
-        # The owner is always the logged-in user, never taken from
-        # the request body, so users cannot create items as someone else.
         serializer.save(owner=self.request.user)
 
     @extend_schema(
@@ -193,17 +138,9 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
         responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
     )
     @action(detail=False, methods=["get"])
+    # Use the index to narrow the search, then check the distance in kilometres.
     def within_radius(self, request):
-        """
-        Spatial query 1 - PROXIMITY / RADIUS SEARCH
-        (ST_DWithin index pre-filter + ST_DistanceSphere exact check).
 
-        Return artisans within `radius` km of a point, nearest first.
-
-        Example:
-        /api/heritage/artisans/within_radius/?lat=53.3498&lng=-6.2603&radius=3
-        Optional filters: &search=pottery &craft_type=WEAVING &region=2
-        """
         try:
             lat, lng, user_point = get_point_from_params(request.query_params)
             radius = get_float_param(
@@ -213,17 +150,13 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
             return bad_request(str(error))
 
         artisans = (
-            # filter_queryset applies ?search=, ?craft_type= and ?region=,
-            # so attribute filters and the spatial query work together.
             self.filter_queryset(self.get_queryset())
-            # Step 1 - index-assisted pre-filter (GiST, degrees box).
             .filter(
                 location__dwithin=(
                     user_point,
                     degrees_covering_km(radius, lat),
                 )
             )
-            # Step 2 - exact distance on the Earth's surface (metres).
             .filter(location__distance_lte=(user_point, D(km=radius)))
             .annotate(distance=Distance("location", user_point))
             .order_by("distance")
@@ -249,33 +182,19 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
         },
     )
     @action(detail=False, methods=["get"])
+    # Find nearby candidates with the index, then compare their distances.
     def nearest(self, request):
-        """
-        Spatial query 2 - NEAREST NEIGHBOUR (KNN "<->" + exact distance).
 
-        Return the single closest artisan to a point.
-
-        Example:
-        /api/heritage/artisans/nearest/?lat=53.3498&lng=-6.2603
-        Optional filters: &search=pottery &craft_type=WEAVING &region=2
-        """
         try:
             lat, lng, user_point = get_point_from_params(request.query_params)
         except InvalidParameter as error:
             return bad_request(str(error))
 
-        # Step 1 - K-nearest-neighbour search with the PostGIS "<->"
-        # operator (GeometryDistance), which walks the GiST index
-        # instead of measuring every row. It ranks in degrees, so take
-        # a few candidates...
-        # filter_queryset applies ?search=, ?craft_type= and ?region=
-        # (e.g. "nearest POTTERY studio").
         filtered = self.filter_queryset(self.get_queryset())
         candidates = (
             filtered
             .order_by(GeometryDistance("location", user_point))[:5]
         )
-        # Step 2 - ...and pick the truly closest one in metres.
         artisan = (
             self.get_queryset()
             .filter(id__in=[c.id for c in candidates])
@@ -300,16 +219,7 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
             }
         )
 
-
-# =========================================================
-# Cultural regions (Polygon geometry)
-# =========================================================
-
 class CulturalRegionViewSet(viewsets.ModelViewSet):
-    """
-    Curated cultural regions. Read-only for the public;
-    only staff users can create, edit or delete regions.
-    """
 
     queryset = CulturalRegion.objects.all().order_by("name")
     serializer_class = CulturalRegionSerializer
@@ -322,16 +232,10 @@ class CulturalRegionViewSet(viewsets.ModelViewSet):
         responses={200: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
     )
     @action(detail=True, methods=["get"])
+    # Return workshop points inside this region polygon.
     def artisans(self, request, pk=None):
-        """
-        Spatial query 3 - CONTAINMENT (ST_Within).
 
-        Return artisans whose location lies inside this region's polygon.
-
-        Example:
-        /api/heritage/regions/1/artisans/
-        """
-        region = self.get_object()  # returns 404 automatically if missing
+        region = self.get_object()
 
         artisans = (
             ArtisanLocation.objects
@@ -356,16 +260,7 @@ class CulturalRegionViewSet(viewsets.ModelViewSet):
             }
         )
 
-
-# =========================================================
-# Heritage routes (LineString geometry)
-# =========================================================
-
 class HeritageRouteViewSet(viewsets.ModelViewSet):
-    """
-    Curated heritage routes. Read-only for the public;
-    only staff users can create, edit or delete routes.
-    """
 
     queryset = HeritageRoute.objects.all().order_by("name")
     serializer_class = HeritageRouteSerializer
@@ -389,15 +284,9 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
         },
     )
     @action(detail=False, methods=["get"])
+    # Find routes that cross or touch the chosen region.
     def intersecting_region(self, request):
-        """
-        Spatial query 4 - INTERSECTION (ST_Intersects).
 
-        Return routes that cross or touch a cultural region.
-
-        Example:
-        /api/heritage/routes/intersecting_region/?region_id=1
-        """
         region_id = request.query_params.get("region_id", "")
 
         if not region_id.isdigit():
@@ -448,17 +337,9 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
         },
     )
     @action(detail=True, methods=["get"])
+    # Use metres to find workshops near a route and draw its buffer.
     def artisans_nearby(self, request, pk=None):
-        """
-        Spatial query 5 - BUFFER (ST_Buffer + ST_DWithin on geography).
 
-        Return artisans within `distance` metres of this route - i.e.
-        makers you could visit while walking the trail - plus the buffer
-        polygon itself so the map can draw the corridor.
-
-        Example:
-        /api/heritage/routes/1/artisans_nearby/?distance=200
-        """
         route = self.get_object()
 
         try:
@@ -474,12 +355,7 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
         artisan_table = ArtisanLocation._meta.db_table
         route_table = HeritageRoute._meta.db_table
 
-        # Casting to ::geography makes PostGIS measure in metres on the
-        # Earth's surface instead of in degrees. Migration 0003 adds
-        # GiST indexes on (location::geography) and (path::geography),
-        # so ST_DWithin here can use an index. Values are passed as
-        # query parameters (%s), never pasted into the SQL string, which
-        # prevents SQL injection.
+        # Pass user values separately from SQL text.
         with connection.cursor() as cursor:
             cursor.execute(
                 f"""

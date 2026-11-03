@@ -1,21 +1,7 @@
-"""
-Show the PostgreSQL query plans for the spatial queries.
-
-    docker compose exec web python manage.py explain_spatial_queries
-
-Why "enable_seqscan = off"?
-With only ~15 rows PostgreSQL correctly decides that reading the whole
-table is faster than using an index, so a normal EXPLAIN shows
-"Seq Scan". Turning sequential scans off for this session only forces
-the planner to show HOW it would use the spatial indexes once the
-tables are large. It changes nothing permanently.
-"""
-
 from django.core.management.base import BaseCommand
 from django.db import connection
 
 from heritage.models import HeritageRoute
-
 
 QUERIES = [
     (
@@ -60,7 +46,6 @@ QUERIES = [
     ),
 ]
 
-
 class Command(BaseCommand):
     help = "Print EXPLAIN plans showing spatial index usage."
 
@@ -78,7 +63,8 @@ class Command(BaseCommand):
             for (name,) in cursor.fetchall():
                 self.stdout.write(f"  - {name}")
 
-            cursor.execute("SET enable_seqscan = off")  # this connection only
+            # Show available index plans for this session; this is not a speed test.
+            cursor.execute("SET enable_seqscan = off")
 
             for title, sql in QUERIES:
                 self.stdout.write("")

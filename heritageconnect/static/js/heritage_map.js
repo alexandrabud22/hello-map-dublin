@@ -1,5 +1,3 @@
-// scrollWheelZoom starts off so scrolling the page does not zoom the map.
-// It switches on after the user clicks/focuses the map (see below).
 const map = L.map("map", {
     scrollWheelZoom: false
 }).setView([53.3498, -6.2603], 13);
@@ -7,10 +5,7 @@ const map = L.map("map", {
 map.on("click focus", () => map.scrollWheelZoom.enable());
 map.on("mouseout blur", () => map.scrollWheelZoom.disable());
 
-/*
- * OpenStreetMap tiles (required tile provider for the assignment).
- * The attribution is required by the OSM tile usage policy.
- */
+// Keep the OpenStreetMap credit visible on the map.
 const OSM_TILE_URL =
     "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -38,31 +33,23 @@ const currentUser = {
     username:
         heritageUserData?.dataset.username || ""
 };
-/* =========================================================
-   MAP LAYERS
-========================================================= */
 
-// Artisan markers are clustered (Leaflet.markercluster): pins that are
-// close together merge into a numbered circle and split apart when the
-// user zooms in. This keeps markers readable and easy to tap.
 const artisanLayer = (
     typeof L.markerClusterGroup === "function"
         ? L.markerClusterGroup({
             showCoverageOnHover: false,
             maxClusterRadius: 45,
             spiderfyOnMaxZoom: true,
-            // From street level (zoom 16+) every marker is shown on its own.
+
             disableClusteringAtZoom: 16,
         })
-        : L.layerGroup() // fallback if the plugin fails to load
+        : L.layerGroup()
 ).addTo(map);
 const regionLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 
-// Holds the corridor drawn by the "artisans along this route" buffer query.
 const bufferLayer = L.layerGroup().addTo(map);
 
-// Route id -> Leaflet layer, used by the route cards below the map.
 const routeLayersById = {};
 
 const resultsSubtitle =
@@ -70,11 +57,6 @@ const resultsSubtitle =
 
 const DEFAULT_RESULTS_SUBTITLE =
     "Discover makers from your selected area.";
-
-
-/* =========================================================
-   APPLICATION STATE
-========================================================= */
 
 let artisanData = [];
 let artisanMarkers = [];
@@ -90,11 +72,6 @@ let newArtisanLocation = null;
 let editingArtisanId = null;
 
 let addressSearchTimer = null;
-
-
-/* =========================================================
-   PAGE ELEMENTS
-========================================================= */
 
 const mapStatus =
     document.getElementById("mapStatus");
@@ -126,11 +103,6 @@ const toggleRegions =
 const toggleRoutes =
     document.getElementById("toggleRoutes");
 
-
-/* =========================================================
-   ARTISAN MODAL ELEMENTS
-========================================================= */
-
 const artisanModal =
     document.getElementById("artisanModal");
 
@@ -161,21 +133,11 @@ const artisanFormMessage =
 const artisanAddressInput =
     document.getElementById("artisanAddress");
 
-
-/* =========================================================
-   GENERAL HELPERS
-========================================================= */
-
 function setStatus(message) {
     mapStatus.textContent = message;
 }
 
-
-/*
- * Load every page of a paginated GeoJSON list endpoint.
- * The API returns 20 items per page plus a "next" link; this follows
- * the links until all features have been collected.
- */
+// Follow API pages so every workshop, region and route is loaded.
 async function fetchAllFeatures(url, errorMessage) {
     const allFeatures = [];
     let nextUrl = url;
@@ -199,12 +161,7 @@ async function fetchAllFeatures(url, errorMessage) {
     return allFeatures;
 }
 
-
-/*
- * Escape text before inserting it into HTML.
- * Artisan details are typed by users, so without this a name like
- * <img src=x onerror=alert(1)> would run as code (stored XSS).
- */
+// Treat workshop text as text, not HTML.
 function escapeHtml(value) {
     if (value === null || value === undefined) {
         return "";
@@ -218,11 +175,6 @@ function escapeHtml(value) {
         .replace(/'/g, "&#39;");
 }
 
-
-/*
- * Turn a Django REST Framework error response into readable text.
- * e.g. {"phone": ["Phone may only contain..."]} -> "phone: Phone may only contain..."
- */
 function formatApiErrors(data) {
     if (!data || typeof data !== "object") {
         return "";
@@ -253,7 +205,6 @@ function formatApiErrors(data) {
         .join(" ");
 }
 
-
 function getCookie(name) {
     let cookieValue = null;
 
@@ -283,7 +234,7 @@ function getCookie(name) {
     return cookieValue;
 }
 
-
+// Include the CSRF token when sending changes to Django.
 function getApiHeaders() {
     const headers = {
         "Content-Type": "application/json"
@@ -299,11 +250,6 @@ function getApiHeaders() {
 
     return headers;
 }
-
-
-/* =========================================================
-   ARTISAN POPUPS
-========================================================= */
 
 function createArtisanPopup(feature) {
     const properties =
@@ -338,11 +284,6 @@ function createArtisanPopup(feature) {
         </p>
     `;
 }
-
-
-/* =========================================================
-   DISPLAY ARTISANS
-========================================================= */
 
 function displayArtisans(features) {
     if (
@@ -390,15 +331,9 @@ function displayArtisans(features) {
     updateResults(features);
 }
 
-
-/* =========================================================
-   RESULTS PANEL
-========================================================= */
-
 function updateResults(features) {
     resultsContainer.innerHTML = "";
 
-    // New results: start the scrollable list at the top again.
     const resultsPanel = document.getElementById("resultsPanel");
     if (resultsPanel) {
         resultsPanel.scrollTop = 0;
@@ -536,14 +471,11 @@ function updateResults(features) {
                 const coordinates =
                     feature.geometry.coordinates;
 
-                // Highlight the chosen card.
                 resultsContainer
                     .querySelectorAll(".result-item.selected")
                     .forEach((item) => item.classList.remove("selected"));
                 result.classList.add("selected");
 
-                // If the map is (partly) off-screen - e.g. after scrolling
-                // down the list - scroll back up so the user sees it.
                 const mapCard = document.getElementById("explore");
                 const mapBox = mapCard.getBoundingClientRect();
                 const headerHeight = 80;
@@ -566,7 +498,6 @@ function updateResults(features) {
 
                 const marker = markerObject.marker;
 
-                // Make sure the artisan layer is visible.
                 if (!map.hasLayer(artisanLayer)) {
                     map.addLayer(artisanLayer);
                     if (toggleArtisans) {
@@ -574,10 +505,6 @@ function updateResults(features) {
                     }
                 }
 
-                // Zoom to street level (clustering is off from zoom 16), then
-                // open the popup once the map has stopped moving - but only
-                // if the marker is still on the map (the list may have been
-                // filtered in the meantime).
                 const latLng = marker.getLatLng();
                 const openIfStillShown = () => {
                     if (artisanLayer.hasLayer(marker)) {
@@ -596,7 +523,6 @@ function updateResults(features) {
             }
         );
 
-        // Keyboard users: Tab to a card, press Enter to show it on the map.
         result.tabIndex = 0;
         result.addEventListener("keydown", (event) => {
             if (event.key === "Enter" && event.target === result) {
@@ -610,11 +536,6 @@ function updateResults(features) {
         );
     });
 }
-
-
-/* =========================================================
-   LOAD ARTISANS
-========================================================= */
 
 async function loadArtisans() {
     try {
@@ -642,11 +563,6 @@ async function loadArtisans() {
         );
     }
 }
-
-
-/* =========================================================
-   LOAD CULTURAL REGIONS
-========================================================= */
 
 async function loadRegions() {
     try {
@@ -707,11 +623,6 @@ async function loadRegions() {
         console.error(error);
     }
 }
-
-
-/* =========================================================
-   LOAD HERITAGE ROUTES
-========================================================= */
 
 async function loadRoutes() {
     try {
@@ -795,21 +706,6 @@ async function loadRoutes() {
     }
 }
 
-
-/* =========================================================
-   SEARCH + CRAFT FILTER
-========================================================= */
-
-/* =========================================================
-   COMBINED FILTERING
-   ---------------------------------------------------------
-   "baseFeatures" = the artisans returned by the last map search
-   (all artisans, a region, a radius search, nearest, or a route
-   corridor). The Search box, Craft category and Cultural region
-   filters are then applied ON TOP of that set, so all controls
-   work together instead of overriding each other.
-========================================================= */
-
 let baseFeatures = [];
 
 function getActiveFilters() {
@@ -839,8 +735,6 @@ function matchesActiveFilters(feature) {
     );
 }
 
-// Query-string version of the filters, sent to the radius / nearest API
-// so the spatial query and the filters run together on the server.
 function filterQueryString() {
     const { search, craft, region } = getActiveFilters();
     const params = new URLSearchParams();
@@ -872,7 +766,6 @@ function updateFilterNote(shown, total) {
         : "";
 }
 
-// Show a new base set of artisans, with the active filters applied.
 function showResults(features) {
     baseFeatures = features;
 
@@ -884,7 +777,6 @@ function showResults(features) {
     return filtered;
 }
 
-
 function applyFilters() {
     const filtered = showResults(baseFeatures);
 
@@ -892,11 +784,6 @@ function applyFilters() {
         `${filtered.length} matching artisans`
     );
 }
-
-
-/* =========================================================
-   CULTURAL REGION FILTER
-========================================================= */
 
 async function filterByRegion() {
     bufferLayer.clearLayers();
@@ -971,11 +858,6 @@ async function filterByRegion() {
     }
 }
 
-
-/* =========================================================
-   SELECT LOCATION ON MAIN MAP
-========================================================= */
-
 function selectMapLocation(
     lat,
     lng
@@ -993,9 +875,6 @@ function selectMapLocation(
         );
     }
 
-    // interactive: false = the marker is only a visual pin. Clicks pass
-    // straight through it to the route / region / map underneath, so it
-    // can never block a click on a heritage route.
     selectedLocationMarker =
         L.circleMarker(
             [lat, lng],
@@ -1031,7 +910,6 @@ function selectMapLocation(
     );
 }
 
-
 map.on(
     "click",
     function (event) {
@@ -1041,11 +919,6 @@ map.on(
         );
     }
 );
-
-
-/* =========================================================
-   NEARBY SEARCH
-========================================================= */
 
 async function runNearbySearch(
     lat,
@@ -1133,7 +1006,6 @@ async function runNearbySearch(
     }
 }
 
-
 function findNearbyArtisans() {
     if (selectedLocation) {
         runNearbySearch(
@@ -1177,11 +1049,6 @@ function findNearbyArtisans() {
             }
         );
 }
-
-
-/* =========================================================
-   NEAREST ARTISAN
-========================================================= */
 
 async function runNearestSearch(
     lat,
@@ -1257,7 +1124,6 @@ async function runNearestSearch(
     }
 }
 
-
 function findNearestArtisan() {
     if (selectedLocation) {
         runNearestSearch(
@@ -1302,11 +1168,6 @@ function findNearestArtisan() {
         );
 }
 
-
-/* =========================================================
-   ADD ARTISAN MODAL
-========================================================= */
-
 function openArtisanModal() {
     editingArtisanId =
         null;
@@ -1348,7 +1209,6 @@ function openArtisanModal() {
     );
 }
 
-
 function closeArtisanModal() {
     artisanModal
         .classList
@@ -1371,11 +1231,6 @@ function closeArtisanModal() {
         addressSearchTimer
     );
 }
-
-
-/* =========================================================
-   ARTISAN LOCATION MAP
-========================================================= */
 
 function initialiseArtisanLocationMap() {
     const mapElement =
@@ -1440,11 +1295,6 @@ function initialiseArtisanLocationMap() {
     }
 }
 
-
-/* =========================================================
-   SELECT ARTISAN FORM LOCATION
-========================================================= */
-
 function selectArtisanFormLocation(
     lat,
     lng
@@ -1487,7 +1337,6 @@ function selectArtisanFormLocation(
         `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
-
 function updateArtisanLocationDisplay() {
     if (
         !artisanLocationDisplay
@@ -1510,7 +1359,6 @@ function updateArtisanLocationDisplay() {
         `${newArtisanLocation.lat.toFixed(5)}, ` +
         `${newArtisanLocation.lng.toFixed(5)}`;
 }
-
 
 function resetArtisanLocationPicker() {
     newArtisanLocation =
@@ -1548,11 +1396,6 @@ function resetArtisanLocationPicker() {
     }
 }
 
-
-/* =========================================================
-   ADDRESS GEOCODING
-========================================================= */
-
 async function geocodeArtisanAddress() {
     const address =
         artisanAddressInput
@@ -1583,11 +1426,6 @@ async function geocodeArtisanAddress() {
                 "success"
             );
 
-        // Try the full address first, then simpler versions, because
-        // OpenStreetMap does not contain every house number or terrace.
-        // e.g. "9 Example Terrace, Blanchardstown, Dublin" ->
-        //      "Example Terrace, Blanchardstown, Dublin" ->
-        //      "Blanchardstown, Dublin" -> "Dublin"
         const parts = address
             .split(",")
             .map((part) => part.trim())
@@ -1626,7 +1464,6 @@ async function geocodeArtisanAddress() {
                 break;
             }
 
-            // Nominatim usage policy: max. 1 request per second.
             await new Promise((resolve) => setTimeout(resolve, 1000));
         }
 
@@ -1678,11 +1515,6 @@ async function geocodeArtisanAddress() {
             .add("error");
     }
 }
-
-
-/* =========================================================
-   OPEN EDIT ARTISAN
-========================================================= */
 
 function openEditArtisanModal(
     feature
@@ -1816,11 +1648,7 @@ function openEditArtisanModal(
     );
 }
 
-
-/* =========================================================
-   SAVE / UPDATE ARTISAN
-========================================================= */
-
+// POST creates a workshop; PATCH updates an existing one.
 async function saveArtisan(
     event
 ) {
@@ -2084,11 +1912,7 @@ async function saveArtisan(
     }
 }
 
-
-/* =========================================================
-   DELETE ARTISAN
-========================================================= */
-
+// Ask before deleting the selected workshop.
 async function deleteArtisan(
     feature
 ) {
@@ -2154,11 +1978,6 @@ async function deleteArtisan(
         );
     }
 }
-
-
-/* =========================================================
-   RESET MAIN MAP
-========================================================= */
 
 function resetMap() {
     bufferLayer.clearLayers();
@@ -2278,28 +2097,20 @@ function resetMap() {
     );
 }
 
-
-/* =========================================================
-   MAIN EVENT LISTENERS
-========================================================= */
-
 searchInput.addEventListener(
     "input",
     applyFilters
 );
-
 
 craftFilter.addEventListener(
     "change",
     applyFilters
 );
 
-
 regionFilter.addEventListener(
     "change",
     filterByRegion
 );
-
 
 document
     .getElementById(
@@ -2310,7 +2121,6 @@ document
         findNearbyArtisans
     );
 
-
 document
     .getElementById(
         "findNearestBtn"
@@ -2320,7 +2130,6 @@ document
         findNearestArtisan
     );
 
-
 document
     .getElementById(
         "resetBtn"
@@ -2329,11 +2138,6 @@ document
         "click",
         resetMap
     );
-
-
-/* =========================================================
-   MAP LAYER TOGGLES
-========================================================= */
 
 toggleArtisans.addEventListener(
     "change",
@@ -2350,7 +2154,6 @@ toggleArtisans.addEventListener(
     }
 );
 
-
 toggleRegions.addEventListener(
     "change",
     function () {
@@ -2365,7 +2168,6 @@ toggleRegions.addEventListener(
         }
     }
 );
-
 
 toggleRoutes.addEventListener(
     "change",
@@ -2382,41 +2184,26 @@ toggleRoutes.addEventListener(
     }
 );
 
-
-/* =========================================================
-   ARTISAN MODAL EVENTS
-========================================================= */
-
 openAddArtisanBtn.addEventListener(
     "click",
     openArtisanModal
 );
-
 
 closeArtisanModalBtn.addEventListener(
     "click",
     closeArtisanModal
 );
 
-
 cancelArtisanBtn.addEventListener(
     "click",
     closeArtisanModal
 );
-
 
 artisanForm.addEventListener(
     "submit",
     saveArtisan
 );
 
-
-/*
- * Stop Enter in a text field from submitting the form by accident
- * (e.g. while typing an address). Enter/Space still work normally on
- * buttons, selects and the textarea, so keyboard users can operate
- * Cancel and Save.
- */
 artisanForm.addEventListener(
     "keydown",
     function (event) {
@@ -2429,8 +2216,6 @@ artisanForm.addEventListener(
     }
 );
 
-
-/* Automatically geocode after user pauses typing */
 artisanAddressInput.addEventListener(
     "input",
     function () {
@@ -2457,8 +2242,6 @@ artisanAddressInput.addEventListener(
     }
 );
 
-
-/* Geocode immediately when leaving address field */
 artisanAddressInput.addEventListener(
     "blur",
     function () {
@@ -2479,11 +2262,6 @@ artisanAddressInput.addEventListener(
     }
 );
 
-
-/* =========================================================
-   DIALOG ACCESSIBILITY - focus management + focus trap
-========================================================= */
-
 let focusBeforeModal = null;
 
 const FOCUSABLE_SELECTOR = [
@@ -2500,13 +2278,13 @@ function getModalFocusableElements() {
         .filter((element) => element.offsetParent !== null);
 }
 
+// Move keyboard focus into the dialog and return it when closed.
 function activateModalFocus() {
-    // Remember where the user was, so focus can return there on close.
+
     focusBeforeModal = document.activeElement;
 
     artisanModal.setAttribute("aria-hidden", "false");
 
-    // Move focus into the dialog (first form field).
     setTimeout(() => {
         document.getElementById("artisanBusinessName")?.focus();
     }, 50);
@@ -2522,7 +2300,7 @@ function deactivateModalFocus() {
     focusBeforeModal = null;
 }
 
-// Keep Tab / Shift+Tab inside the open dialog.
+// Keep Tab navigation inside the open dialog.
 artisanModal.addEventListener("keydown", (event) => {
     if (event.key !== "Tab" || !artisanModal.classList.contains("open")) {
         return;
@@ -2546,18 +2324,15 @@ artisanModal.addEventListener("keydown", (event) => {
     }
 });
 
-
 const modalBackdrop =
     artisanModal.querySelector(
         ".artisan-modal-backdrop"
     );
 
-
 modalBackdrop.addEventListener(
     "click",
     closeArtisanModal
 );
-
 
 document.addEventListener(
     "keydown",
@@ -2573,15 +2348,6 @@ document.addEventListener(
         }
     }
 );
-
-
-/* =========================================================
-   INITIALISE APPLICATION
-========================================================= */
-
-/* =========================================================
-   REGION DROPDOWNS (filled from the API, not hard-coded)
-========================================================= */
 
 function populateRegionSelects(features) {
     const sortedRegions = [...features].sort((a, b) =>
@@ -2599,13 +2365,12 @@ function populateRegionSelects(features) {
         select.add(new Option(firstLabel, ""));
 
         sortedRegions.forEach((feature) => {
-            // new Option() sets text safely (no HTML parsing).
+
             select.add(
                 new Option(feature.properties.name, String(feature.id))
             );
         });
 
-        // Keep the user's choice if that region still exists.
         if ([...select.options].some((o) => o.value === previousValue)) {
             select.value = previousValue;
         }
@@ -2618,11 +2383,7 @@ function populateRegionSelects(features) {
     );
 }
 
-
-/* =========================================================
-   BUFFER QUERY - ARTISANS ALONG A HERITAGE ROUTE
-========================================================= */
-
+// Draw the route buffer and show the workshops inside it.
 async function showArtisansAlongRoute(routeId, distanceMetres) {
     try {
         setStatus("Finding artisans along the route...");
@@ -2639,7 +2400,6 @@ async function showArtisansAlongRoute(routeId, distanceMetres) {
             );
         }
 
-        // Draw the buffer corridor around the route.
         bufferLayer.clearLayers();
 
         const corridor = L.geoJSON(data.buffer, {
@@ -2675,9 +2435,6 @@ async function showArtisansAlongRoute(routeId, distanceMetres) {
     }
 }
 
-
-// Route popups are created dynamically, so attach button handlers
-// each time a popup opens.
 map.on("popupopen", (event) => {
     const popupElement = event.popup.getElement();
 
@@ -2698,11 +2455,6 @@ map.on("popupopen", (event) => {
             });
         });
 });
-
-
-/* =========================================================
-   HERITAGE ROUTE CARDS (below the map)
-========================================================= */
 
 function renderRouteCards(features) {
     const container = document.getElementById("routeCards");
@@ -2743,7 +2495,6 @@ function renderRouteCards(features) {
     }).join("");
 }
 
-
 document.getElementById("routeCards")?.addEventListener("click", (event) => {
     const button = event.target.closest(".route-card-btn");
 
@@ -2773,11 +2524,6 @@ document.getElementById("routeCards")?.addEventListener("click", (event) => {
     }
 });
 
-
-/* =========================================================
-   MOBILE MENU + COLLAPSIBLE MAP LEGEND
-========================================================= */
-
 const navToggle = document.getElementById("navToggle");
 const topbar = document.querySelector(".topbar");
 
@@ -2788,7 +2534,6 @@ navToggle?.addEventListener("click", () => {
     navToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
 });
 
-// Close the mobile menu after choosing a link.
 document.querySelectorAll("#mainNav a").forEach((link) => {
     link.addEventListener("click", () => {
         document.querySelectorAll("#mainNav a")
@@ -2799,7 +2544,6 @@ document.querySelectorAll("#mainNav a").forEach((link) => {
         navToggle?.setAttribute("aria-expanded", "false");
     });
 });
-
 
 const mapLegend = document.getElementById("mapLegend");
 const legendToggle = document.getElementById("legendToggle");
@@ -2813,15 +2557,12 @@ legendToggle?.addEventListener("click", () => {
     setLegendCollapsed(!mapLegend.classList.contains("collapsed"));
 });
 
-// Start collapsed on phones so the legend does not cover the map.
 setLegendCollapsed(window.matchMedia("(max-width: 820px)").matches);
-
 
 async function initialiseMap() {
     await loadArtisans();
     await loadRegions();
     await loadRoutes();
 }
-
 
 initialiseMap();

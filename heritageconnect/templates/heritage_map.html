@@ -11,7 +11,6 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <!-- Tab icon (inline SVG, so no extra file / no favicon 404) -->
     <link
         rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23a2512e'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E"
@@ -24,7 +23,6 @@
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     >
 
-    <!-- Leaflet.markercluster (groups nearby artisan markers) -->
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
@@ -46,12 +44,7 @@
     >
 </head>
 
-
 <body>
-
-<!-- =========================================================
-     TOP NAVIGATION
-========================================================= -->
 
 <header class="topbar">
 
@@ -65,8 +58,6 @@
         </span>
     </div>
 
-
-    <!-- Mobile menu button (shown on small screens only) -->
     <button
         id="navToggle"
         class="nav-toggle"
@@ -79,7 +70,6 @@
         <span></span>
         <span></span>
     </button>
-
 
     <nav
         id="mainNav"
@@ -104,7 +94,6 @@
         </a>
 
     </nav>
-
 
     <div class="nav-user-area">
 
@@ -139,11 +128,6 @@
 
         {% else %}
 
-            <!--
-                Keep this hidden element because the current
-                JavaScript expects openAddArtisanBtn to exist.
-                It is disabled and cannot be used.
-            -->
             <button
                 id="openAddArtisanBtn"
                 type="button"
@@ -171,17 +155,7 @@
 
 </header>
 
-
-<!-- =========================================================
-     PAGE CONTENT
-========================================================= -->
-
 <main class="page-shell">
-
-
-    <!-- =====================================================
-         INTRO
-    ====================================================== -->
 
     <section class="intro-section">
 
@@ -197,18 +171,12 @@
 
         </div>
 
-
         <p class="intro-copy">
             Meet local makers, explore traditional crafts,
             and discover cultural routes across Dublin.
         </p>
 
     </section>
-
-
-    <!-- =====================================================
-         FILTERS
-    ====================================================== -->
 
     <section class="filters-panel">
 
@@ -226,7 +194,6 @@
             >
 
         </div>
-
 
         <div class="filter">
 
@@ -279,7 +246,6 @@
 
         </div>
 
-
         <div class="filter">
 
             <label for="regionFilter">
@@ -294,12 +260,10 @@
                 <option value="">
                     All regions
                 </option>
-                <!-- Region options are loaded from the API by heritage_map.js -->
 
             </select>
 
         </div>
-
 
         <div class="filter">
 
@@ -339,7 +303,6 @@
 
         </div>
 
-
         <div class="filter-actions">
 
             <button
@@ -349,7 +312,6 @@
             >
                 Search Nearby
             </button>
-
 
             <button
                 id="findNearestBtn"
@@ -363,15 +325,7 @@
 
     </section>
 
-
-    <!-- =====================================================
-         MAP + RESULTS
-    ====================================================== -->
-
     <section class="content-grid">
-
-
-        <!-- MAP -->
 
         <div class="map-card" id="explore">
 
@@ -381,14 +335,12 @@
                 aria-label="Interactive map of Dublin artisans, cultural regions and heritage routes"
             ></div>
 
-
             <div
                 id="selectedLocationInfo"
                 class="selected-location-info"
             >
                 Click anywhere on the map to choose a search location.
             </div>
-
 
             <div
                 id="mapStatus"
@@ -398,7 +350,6 @@
             >
                 Loading HeritageConnect...
             </div>
-
 
             <div class="map-legend" id="mapLegend">
 
@@ -411,7 +362,6 @@
                 >
                     Map layers
                 </button>
-
 
                 <label class="layer-toggle">
 
@@ -429,7 +379,6 @@
 
                 </label>
 
-
                 <label class="layer-toggle">
 
                     <input
@@ -445,7 +394,6 @@
                     Cultural regions
 
                 </label>
-
 
                 <label class="layer-toggle">
 
@@ -465,7 +413,6 @@
 
             </div>
 
-
             <button
                 id="resetBtn"
                 class="reset-map-btn"
@@ -475,9 +422,6 @@
             </button>
 
         </div>
-
-
-        <!-- RESULTS -->
 
         <aside
             class="results-panel"
@@ -504,13 +448,11 @@
 
                 </div>
 
-
                 <span class="recommended-label">
                     Recommended
                 </span>
 
             </div>
-
 
             <div id="results" aria-live="polite">
 
@@ -523,11 +465,6 @@
         </aside>
 
     </section>
-
-
-    <!-- =====================================================
-         HERITAGE ROUTES (cards filled by heritage_map.js)
-    ====================================================== -->
 
     <section class="routes-section" id="routesSection">
 
@@ -544,11 +481,6 @@
         </div>
 
     </section>
-
-
-    <!-- =====================================================
-         ABOUT
-    ====================================================== -->
 
     <section class="about-section" id="aboutSection">
 
@@ -604,11 +536,6 @@
 
 </main>
 
-
-<!-- =========================================================
-     ADD / EDIT ARTISAN MODAL
-========================================================= -->
-
 <div
     id="artisanModal"
     class="artisan-modal"
@@ -617,16 +544,12 @@
 
     <div class="artisan-modal-backdrop"></div>
 
-
     <div
         class="artisan-modal-content"
         role="dialog"
         aria-modal="true"
         aria-labelledby="artisanModalTitle"
     >
-
-
-        <!-- MODAL HEADER -->
 
         <div class="artisan-modal-header">
 
@@ -642,7 +565,6 @@
 
             </div>
 
-
             <button
                 id="closeArtisanModalBtn"
                 class="modal-close-btn"
@@ -654,20 +576,11 @@
 
         </div>
 
-
-        <!-- =================================================
-             FORM
-        ================================================== -->
-
         <form id="artisanForm">
 
             {% csrf_token %}
 
-
             <div class="modal-form-grid">
-
-
-                <!-- WORKSHOP NAME -->
 
                 <div class="form-field">
 
@@ -684,9 +597,6 @@
 
                 </div>
 
-
-                <!-- ARTISAN NAME -->
-
                 <div class="form-field">
 
                     <label for="artisanName">
@@ -701,9 +611,6 @@
                     >
 
                 </div>
-
-
-                <!-- CRAFT -->
 
                 <div class="form-field">
 
@@ -756,9 +663,6 @@
 
                 </div>
 
-
-                <!-- REGION -->
-
                 <div class="form-field">
 
                     <label for="artisanRegion">
@@ -770,14 +674,10 @@
                         <option value="">
                             Detect from location
                         </option>
-                        <!-- Region options are loaded from the API by heritage_map.js -->
 
                     </select>
 
                 </div>
-
-
-                <!-- ADDRESS -->
 
                 <div
                     class="form-field form-field-full"
@@ -796,9 +696,6 @@
 
                 </div>
 
-
-                <!-- DESCRIPTION -->
-
                 <div
                     class="form-field form-field-full"
                 >
@@ -815,9 +712,6 @@
 
                 </div>
 
-
-                <!-- OPENING HOURS -->
-
                 <div class="form-field">
 
                     <label for="artisanOpeningHours">
@@ -832,9 +726,6 @@
 
                 </div>
 
-
-                <!-- PHONE -->
-
                 <div class="form-field">
 
                     <label for="artisanPhone">
@@ -848,9 +739,6 @@
                     >
 
                 </div>
-
-
-                <!-- WEBSITE -->
 
                 <div
                     class="form-field form-field-full"
@@ -870,13 +758,7 @@
 
             </div>
 
-
-            <!-- =============================================
-                 ARTISAN LOCATION MAP
-            ============================================== -->
-
             <div class="modal-location-section">
-
 
                 <div class="modal-location-header">
 
@@ -894,28 +776,20 @@
 
                     </div>
 
-
                     <div id="artisanLocationDisplay">
                         No location selected
                     </div>
 
                 </div>
 
-
                 <div id="artisanLocationMap"></div>
 
             </div>
-
-
-            <!-- FORM STATUS -->
 
             <div
                 id="artisanFormMessage"
                 class="artisan-form-message"
             ></div>
-
-
-            <!-- ACTIONS -->
 
             <div class="modal-actions">
 
@@ -926,7 +800,6 @@
                 >
                     Cancel
                 </button>
-
 
                 <button
                     id="saveArtisanBtn"
@@ -944,22 +817,12 @@
 
 </div>
 
-
-<!-- =========================================================
-     CURRENT USER DATA FOR JAVASCRIPT
-========================================================= -->
-
 <div
     id="heritageUserData"
     data-authenticated="{{ user.is_authenticated|yesno:'true,false' }}"
     data-username="{{ user.username|escape }}"
     hidden
 ></div>
-
-
-<!-- =========================================================
-     JAVASCRIPT
-========================================================= -->
 
 <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

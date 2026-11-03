@@ -1,14 +1,7 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-
+# Anyone can read; only the owner or staff can change a workshop.
 class IsOwnerOrReadOnly(BasePermission):
-    """
-    Object-level permission for artisan locations.
-
-    - Anyone (including anonymous visitors) can read.
-    - Only the user who created the artisan can edit or delete it.
-    - Staff users (administrators) can moderate any artisan.
-    """
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
@@ -22,14 +15,8 @@ class IsOwnerOrReadOnly(BasePermission):
             and (obj.owner == user or user.is_staff)
         )
 
-
+# Only staff can change the shared regions and routes.
 class IsStaffOrReadOnly(BasePermission):
-    """
-    Used for cultural regions and heritage routes.
-
-    These are curated reference layers, so anyone can read them,
-    but only staff users can create, update or delete them.
-    """
 
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:

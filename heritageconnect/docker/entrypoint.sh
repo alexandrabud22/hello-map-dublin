@@ -1,12 +1,6 @@
 #!/bin/sh
-# HeritageConnect web container start-up script.
-#
-# 1. Apply database migrations (creates/updates PostGIS tables).
-# 2. Collect static files into /app/staticfiles (shared with Nginx).
-# 3. Start Gunicorn, the production WSGI server.
-#
-# "set -e" stops the container if any step fails, so problems are
-# visible in "docker compose logs web" instead of being ignored.
+
+# Stop startup if migrations or static file collection fail.
 set -e
 
 echo "==> Applying database migrations"
@@ -15,7 +9,6 @@ python manage.py migrate --noinput
 echo "==> Collecting static files"
 python manage.py collectstatic --noinput --clear --verbosity 0
 
-# Auto-reload on code changes only in development (DJANGO_DEBUG=True).
 RELOAD_FLAG=""
 case "$(echo "${DEBUG:-False}" | tr '[:upper:]' '[:lower:]')" in
     true|1|yes) RELOAD_FLAG="--reload"; echo "==> Development mode (auto-reload on)";;

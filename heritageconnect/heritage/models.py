@@ -1,25 +1,8 @@
-"""
-HeritageConnect data model (the "M" in MVC).
-
-Three spatial tables, one for each PostGIS geometry type:
-  CulturalRegion  - POLYGON     (areas such as The Liberties)
-  ArtisanLocation - POINT       (individual makers / workshops)
-  HeritageRoute   - LINESTRING  (walking / craft trails)
-
-All geometries are stored in WGS84 (SRID 4326, latitude/longitude) so
-they can be sent straight to Leaflet as GeoJSON. GeoDjango creates a
-GiST spatial index on every geometry field automatically
-(spatial_index=True is the default), which keeps spatial queries fast.
-"""
-
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 
-
-# Irish Transverse Mercator - a projected CRS measured in metres.
-# Used whenever we need accurate lengths/distances in Ireland.
+# Use metres when calculating route lengths.
 IRISH_TM_SRID = 2157
-
 
 class CulturalRegion(models.Model):
     name = models.CharField(max_length=150)
@@ -33,7 +16,6 @@ class CulturalRegion(models.Model):
 
     def __str__(self):
         return self.name
-
 
 class ArtisanLocation(models.Model):
     CRAFT_TYPES = [
@@ -88,10 +70,8 @@ class ArtisanLocation(models.Model):
         return f"{self.name} - {self.get_craft_type_display()}"
 
     def save(self, *args, **kwargs):
-        """
-        If no region was chosen, find it spatially: the cultural region
-        whose polygon contains this point (PostGIS ST_Contains).
-        """
+
+        # Find the region containing this workshop when none was chosen.
         if self.region_id is None and self.location is not None:
             self.region = (
                 CulturalRegion.objects
@@ -99,7 +79,6 @@ class ArtisanLocation(models.Model):
                 .first()
             )
         super().save(*args, **kwargs)
-
 
 class HeritageRoute(models.Model):
     ROUTE_TYPES = [
@@ -122,7 +101,6 @@ class HeritageRoute(models.Model):
 
     path = models.LineStringField(srid=4326, spatial_index=True)
 
-    # Calculated automatically from the geometry in save().
     distance_km = models.DecimalField(
         max_digits=8,
         decimal_places=2,
@@ -137,11 +115,9 @@ class HeritageRoute(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        """
-        Calculate the route length in km. Degrees are not a distance,
-        so the line is projected to Irish Transverse Mercator (metres).
-        """
+
         if self.path is not None:
+            # Convert degrees to metres, then save the length in kilometres.
             metric_path = self.path.transform(IRISH_TM_SRID, clone=True)
             self.distance_km = round(metric_path.length / 1000, 2)
         super().save(*args, **kwargs)

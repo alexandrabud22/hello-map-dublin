@@ -1,16 +1,7 @@
-"""
-Django settings for HeritageConnect (project package: hello_map).
-
-All secrets and environment-specific values are read from environment
-variables, which Docker Compose loads from the .env file.
-See .env.example for the full list.
-"""
-
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 SECRET_KEY = (
     os.getenv("SECRET_KEY")
@@ -23,17 +14,14 @@ if not SECRET_KEY:
         "Check the .env and compose.yaml files."
     )
 
-
 def env_list(name, default=""):
-    """Read a comma-separated environment variable as a list."""
+
     return [
         item.strip()
         for item in os.getenv(name, default).split(",")
         if item.strip()
     ]
 
-
-# DEBUG is OFF unless explicitly turned on (safe default).
 DEBUG = (
     os.getenv("DEBUG", os.getenv("DJANGO_DEBUG", "False")).lower()
     in ("true", "1", "yes")
@@ -41,15 +29,13 @@ DEBUG = (
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
-# Origins allowed to send forms/API writes (needed behind Nginx on :8000).
 CSRF_TRUSTED_ORIGINS = env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     "http://localhost:8000,http://127.0.0.1:8000",
 )
 
-
 INSTALLED_APPS = [
-    # Django applications
+
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -58,24 +44,20 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.gis",
 
-    # Third-party applications
     "rest_framework",
     "rest_framework_gis",
     "django_filters",
     "corsheaders",
     "drf_spectacular",
 
-    # Project application
     "heritage",
 ]
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
 
-    # CORS middleware should appear before CommonMiddleware.
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.common.CommonMiddleware",
@@ -85,15 +67,12 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-
 ROOT_URLCONF = "hello_map.urls"
-
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
 
-        # Project-level templates (heritage_map.html, registration/*)
         "DIRS": [
             BASE_DIR / "templates",
         ],
@@ -110,7 +89,6 @@ TEMPLATES = [
     },
 ]
 
-
 WSGI_APPLICATION = "hello_map.wsgi.application"
 
 DATABASES = {
@@ -123,7 +101,6 @@ DATABASES = {
         "PORT": os.environ["DATABASE_PORT"],
     }
 }
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -151,7 +128,6 @@ AUTH_PASSWORD_VALIDATORS = [
         ),
     },
 ]
-
 
 LANGUAGE_CODE = "en-us"
 
@@ -200,7 +176,6 @@ REST_FRAMEWORK = {
         "drf_spectacular.openapi.AutoSchema"
     ),
 
-    # Rate limiting - protects the API from abuse / scraping.
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -211,44 +186,24 @@ REST_FRAMEWORK = {
     },
 }
 
-# CORS: the front end is served from the same origin as the API, so no
-# cross-origin access is needed. Extra origins can be added via .env.
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS", "")
 CORS_ALLOW_CREDENTIALS = False
 
-
-# =========================================================
-# Security settings
-# =========================================================
-
-# Browser-side protections (also reinforced by Nginx headers).
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 X_FRAME_OPTIONS = "DENY"
 
-# Session cookie cannot be read by JavaScript.
 SESSION_COOKIE_HTTPONLY = True
-# Note: CSRF_COOKIE_HTTPONLY stays False because heritage_map.js reads
-# the csrftoken cookie to send the X-CSRFToken header.
 
-SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 hours
+SESSION_COOKIE_AGE = 60 * 60 * 8
 
-# Behind Nginx: trust X-Forwarded-Proto so Django knows if HTTPS was used.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Only enable these when the site is served over HTTPS
-# (set DJANGO_SECURE_COOKIES=True). Local Docker runs on plain HTTP.
 if os.getenv("DJANGO_SECURE_COOKIES", "False").lower() == "true":
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
     SECURE_SSL_REDIRECT = True
-
-
-# =========================================================
-# Logging - errors go to the container log
-# (view with: docker compose logs web)
-# =========================================================
 
 LOGGING = {
     "version": 1,
@@ -265,7 +220,6 @@ LOGGING = {
         },
     },
 }
-
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "HeritageConnect API",

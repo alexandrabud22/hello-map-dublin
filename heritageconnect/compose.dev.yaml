@@ -1,21 +1,12 @@
-# HeritageConnect - DEVELOPMENT override
-#
-# Use together with compose.yaml:
-#     docker compose -f compose.yaml -f compose.dev.yaml up -d
-#
-# Adds live source-code mounts so edits apply without rebuilding the
-# image. Also set DJANGO_DEBUG=True in .env for auto-reload and
-# detailed error pages. Do NOT use this for assessment/production.
-
+# Use with compose.yaml for development; set DJANGO_DEBUG=True for reload.
 services:
   web:
     volumes:
-      # Source code from your computer replaces the copy in the image
+
       - .:/app
       - static_data:/app/staticfiles
 
   nginx:
     volumes:
-      # Serve the project's static/ folder directly (CSS/JS edits show
-      # immediately); collected files remain the fallback.
+
       - ./static:/srv/src/static:ro

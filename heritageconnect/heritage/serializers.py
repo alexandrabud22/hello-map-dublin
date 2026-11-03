@@ -1,10 +1,3 @@
-"""
-Serializers convert model instances <-> GeoJSON and validate input.
-
-GeoFeatureModelSerializer (djangorestframework-gis) outputs each object
-as a GeoJSON Feature, so Leaflet can draw API responses directly.
-"""
-
 import re
 
 from rest_framework import serializers
@@ -12,9 +5,7 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
 from .models import ArtisanLocation, CulturalRegion, HeritageRoute
 
-
-# Rough bounding box around the island of Ireland (WGS84).
-# Artisan locations outside this box are rejected.
+# Limit workshop coordinates to a box around Ireland.
 IRELAND_BOUNDS = {
     "min_lng": -10.8,
     "max_lng": -5.3,
@@ -22,31 +13,24 @@ IRELAND_BOUNDS = {
     "max_lat": 55.5,
 }
 
-# Digits, spaces, +, -, ( and ) only, e.g. "+353 1 234 5678".
 PHONE_PATTERN = re.compile(r"^[0-9+\-() ]{6,20}$")
-
 
 def validate_not_blank(value, field_label):
     if not value or not value.strip():
         raise serializers.ValidationError(f"{field_label} cannot be blank.")
     return value.strip()
 
-
 def validate_geometry_is_valid(geometry):
-    """Reject self-intersecting or otherwise invalid geometries."""
+
     if geometry is not None and not geometry.valid:
         raise serializers.ValidationError(
             f"Invalid geometry: {geometry.valid_reason}"
         )
     return geometry
 
-
+# Reject the wrong geometry type before it reaches the database.
 def validate_geometry_type(geometry, expected_type):
-    """
-    The database columns only accept one geometry type each
-    (Point / Polygon / LineString). Check it here so a wrong type gives
-    a clear 400 error instead of a database error.
-    """
+
     if geometry is None:
         raise serializers.ValidationError("A geometry is required.")
     if geometry.geom_type != expected_type:
@@ -56,7 +40,6 @@ def validate_geometry_type(geometry, expected_type):
     if geometry.srid not in (None, 4326):
         geometry.transform(4326)
     return geometry
-
 
 class CulturalRegionSerializer(GeoFeatureModelSerializer):
     artisan_count = serializers.SerializerMethodField()
@@ -83,7 +66,6 @@ class CulturalRegionSerializer(GeoFeatureModelSerializer):
     def validate_boundary(self, value):
         validate_geometry_type(value, "Polygon")
         return validate_geometry_is_valid(value)
-
 
 class ArtisanLocationSerializer(GeoFeatureModelSerializer):
     craft_type_display = serializers.CharField(
@@ -119,8 +101,6 @@ class ArtisanLocationSerializer(GeoFeatureModelSerializer):
         )
         read_only_fields = ("owner", "created_at", "updated_at")
 
-    # ---- field-level validation ----
-
     def validate_name(self, value):
         return validate_not_blank(value, "Workshop name")
 
@@ -153,13 +133,8 @@ class ArtisanLocationSerializer(GeoFeatureModelSerializer):
             )
         return value
 
-    # ---- object-level validation ----
-
     def validate(self, attrs):
-        """
-        If a region is chosen, the point must actually lie inside
-        that region's polygon (a spatial check on save).
-        """
+
         region = attrs.get("region", getattr(self.instance, "region", None))
         location = attrs.get(
             "location", getattr(self.instance, "location", None)
@@ -170,7 +145,6 @@ class ArtisanLocationSerializer(GeoFeatureModelSerializer):
                 {"region": f"This location is not inside {region.name}."}
             )
         return attrs
-
 
 class HeritageRouteSerializer(GeoFeatureModelSerializer):
     route_type_display = serializers.CharField(

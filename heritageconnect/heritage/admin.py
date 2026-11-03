@@ -3,7 +3,6 @@ from django.contrib.gis.admin import GISModelAdmin
 
 from .models import ArtisanLocation, CulturalRegion, HeritageRoute
 
-
 @admin.register(ArtisanLocation)
 class ArtisanLocationAdmin(GISModelAdmin):
     list_display = (
@@ -26,7 +25,6 @@ class ArtisanLocationAdmin(GISModelAdmin):
         "address",
     )
 
-
 @admin.register(CulturalRegion)
 class CulturalRegionAdmin(GISModelAdmin):
     list_display = (
@@ -39,7 +37,6 @@ class CulturalRegionAdmin(GISModelAdmin):
         "name",
         "region_type",
     )
-
 
 @admin.register(HeritageRoute)
 class HeritageRouteAdmin(GISModelAdmin):

@@ -6,8 +6,6 @@
     --text: #2e2a26;
     --muted: #756e66;
 
-    /* #a2512e meets WCAG AA contrast (4.5:1) for text on the cream
-       background and for white text on accent buttons. */
     --accent: #a2512e;
     --accent-dark: #7d3a1d;
     --green: #70866c;
@@ -19,7 +17,6 @@
 
     --radius: 14px;
 }
-
 
 * {
     box-sizing: border-box;
@@ -40,15 +37,9 @@ body {
     color: var(--text);
 }
 
-
 body {
     overflow-x: hidden;
 }
-
-
-/* -------------------------------------------------
-   TOP NAVIGATION
-------------------------------------------------- */
 
 .topbar {
     height: 72px;
@@ -69,7 +60,6 @@ body {
     z-index: 2000;
 }
 
-
 .brand {
     display: flex;
     align-items: center;
@@ -79,18 +69,15 @@ body {
     font-weight: 700;
 }
 
-
 .brand-mark {
     color: var(--accent);
     font-size: 22px;
 }
 
-
 .nav-links {
     display: flex;
     gap: 30px;
 }
-
 
 .nav-links a {
     text-decoration: none;
@@ -102,24 +89,20 @@ body {
     padding: 25px 0 21px;
 }
 
-
 .nav-links a:hover,
 .nav-links a.active {
     color: var(--accent);
 }
 
-
 .nav-links a.active {
     border-bottom: 2px solid var(--accent);
 }
-
 
 .topbar-actions {
     display: flex;
     align-items: center;
     gap: 14px;
 }
-
 
 .add-artisan-btn {
     border: none;
@@ -134,11 +117,9 @@ body {
     font-weight: 600;
 }
 
-
 .add-artisan-btn:hover {
     background: #ead3c5;
 }
-
 
 .profile-icon {
     width: 34px;
@@ -157,11 +138,6 @@ body {
     font-size: 13px;
 }
 
-
-/* -------------------------------------------------
-   MAIN PAGE
-------------------------------------------------- */
-
 .page-shell {
     max-width: 1450px;
 
@@ -173,11 +149,6 @@ body {
         38px;
 }
 
-
-/* -------------------------------------------------
-   INTRODUCTION
-------------------------------------------------- */
-
 .intro-section {
     display: flex;
     justify-content: space-between;
@@ -187,7 +158,6 @@ body {
 
     margin-bottom: 20px;
 }
-
 
 .location-label {
     font-size: 11px;
@@ -200,7 +170,6 @@ body {
     margin-bottom: 7px;
 }
 
-
 .intro-section h1 {
     margin: 0;
 
@@ -211,7 +180,6 @@ body {
 
     color: #3b332d;
 }
-
 
 .intro-copy {
     max-width: 340px;
@@ -225,11 +193,6 @@ body {
 
     text-align: right;
 }
-
-
-/* -------------------------------------------------
-   FILTERS
-------------------------------------------------- */
 
 .filters-panel {
     display: grid;
@@ -248,7 +211,6 @@ body {
     margin-bottom: 16px;
 }
 
-
 .filter label {
     display: block;
 
@@ -258,7 +220,6 @@ body {
 
     margin-bottom: 5px;
 }
-
 
 .filter .form-control,
 .filter .form-select {
@@ -275,7 +236,6 @@ body {
     box-shadow: none;
 }
 
-
 .filter .form-control:focus,
 .filter .form-select:focus {
     border-color: var(--accent);
@@ -284,14 +244,12 @@ body {
         0 0 0 2px rgba(184, 95, 54, 0.12);
 }
 
-
 .filter-actions {
     display: flex;
     align-items: center;
 
     gap: 8px;
 }
-
 
 .primary-action {
     height: 44px;
@@ -311,11 +269,9 @@ body {
     font-size: 13px;
 }
 
-
 .primary-action:hover {
     background: var(--accent-dark);
 }
-
 
 .nearest-action {
     height: 44px;
@@ -332,11 +288,6 @@ body {
     font-weight: 600;
 }
 
-
-/* -------------------------------------------------
-   CONTENT GRID
-------------------------------------------------- */
-
 .content-grid {
     display: grid;
 
@@ -348,11 +299,6 @@ body {
 
     min-height: 650px;
 }
-
-
-/* -------------------------------------------------
-   MAP
-------------------------------------------------- */
 
 .map-card {
     position: relative;
@@ -370,12 +316,10 @@ body {
     box-shadow: var(--shadow);
 }
 
-
 #map {
     width: 100%;
     height: 650px;
 }
-
 
 .map-status {
     position: absolute;
@@ -399,7 +343,6 @@ body {
 
     box-shadow: var(--shadow);
 }
-
 
 .selected-location-info {
     position: absolute;
@@ -426,13 +369,11 @@ body {
     box-shadow: var(--shadow);
 }
 
-
 .selected-location-info.active {
     color: var(--green);
 
     border-color: #b9c4b5;
 }
-
 
 .map-legend {
     position: absolute;
@@ -459,7 +400,6 @@ body {
     color: var(--muted);
 }
 
-
 .legend-title {
     font-weight: 700;
 
@@ -467,7 +407,6 @@ body {
 
     margin-bottom: 8px;
 }
-
 
 .map-legend > div:not(.legend-title) {
     display: flex;
@@ -478,7 +417,6 @@ body {
     margin: 5px 0;
 }
 
-
 .legend-dot {
     display: inline-block;
 
@@ -488,11 +426,9 @@ body {
     border-radius: 50%;
 }
 
-
 .artisan-dot {
     background: var(--accent);
 }
-
 
 .legend-box {
     width: 11px;
@@ -505,7 +441,6 @@ body {
     background: rgba(112, 134, 108, 0.18);
 }
 
-
 .legend-line {
     width: 16px;
     height: 2px;
@@ -514,7 +449,6 @@ body {
 
     background: var(--accent-dark);
 }
-
 
 .reset-map-btn {
     position: absolute;
@@ -539,17 +473,11 @@ body {
     box-shadow: var(--shadow);
 }
 
-
-/* -------------------------------------------------
-   RESULTS
-------------------------------------------------- */
-
 .results-panel {
     min-height: 650px;
 
     padding: 4px 0;
 }
-
 
 .results-header {
     display: flex;
@@ -561,13 +489,11 @@ body {
     margin-bottom: 12px;
 }
 
-
 .results-header h2 {
     margin: 0 0 3px;
 
     font-size: 17px;
 }
-
 
 .results-header p {
     margin: 0;
@@ -577,13 +503,11 @@ body {
     color: var(--muted);
 }
 
-
 .recommended-label {
     font-size: 10px;
 
     color: var(--muted);
 }
-
 
 #results {
     display: flex;
@@ -591,7 +515,6 @@ body {
 
     gap: 11px;
 }
-
 
 .result-item {
     background: var(--surface);
@@ -613,7 +536,6 @@ body {
         border-color 0.15s ease;
 }
 
-
 .result-item:hover {
     transform: translateY(-2px);
 
@@ -622,7 +544,6 @@ body {
     box-shadow:
         0 8px 18px rgba(50, 40, 30, 0.08);
 }
-
 
 .result-item h3 {
     margin: 4px 0 7px;
@@ -634,7 +555,6 @@ body {
     color: var(--text);
 }
 
-
 .result-item p {
     margin: 3px 0;
 
@@ -643,11 +563,6 @@ body {
     color: var(--muted);
 }
 
-
-/* -------------------------------------------------
-   LEAFLET POPUPS
-------------------------------------------------- */
-
 .leaflet-popup-content-wrapper {
     border-radius: 12px;
 
@@ -655,13 +570,11 @@ body {
         0 10px 30px rgba(40, 35, 30, 0.14);
 }
 
-
 .leaflet-popup-content {
     margin: 16px;
 
     font-size: 13px;
 }
-
 
 .leaflet-popup-content h3 {
     font-family: Georgia, serif;
@@ -671,15 +584,9 @@ body {
     margin-bottom: 9px;
 }
 
-
 .leaflet-popup-content p {
     margin: 4px 0;
 }
-
-
-/* -------------------------------------------------
-   RESPONSIVE
-------------------------------------------------- */
 
 @media (max-width: 1100px) {
 
@@ -700,7 +607,7 @@ body {
 
 }
 
-
+/* Stack the layout and show the menu button on smaller screens. */
 @media (max-width: 820px) {
 
     .topbar {
@@ -759,17 +666,14 @@ body {
     text-transform: uppercase;
 }
 
-
 .artisan-name {
     font-weight: 500;
     color: var(--text) !important;
 }
 
-
 .result-address {
     font-size: 11px !important;
 }
-
 
 .result-description {
     margin-top: 8px !important;
@@ -782,7 +686,6 @@ body {
 
     overflow: hidden;
 }
-
 
 .result-footer {
     display: flex;
@@ -801,7 +704,6 @@ body {
     color: var(--muted);
 }
 
-
 .view-details {
     color: var(--accent);
 
@@ -809,7 +711,6 @@ body {
 
     white-space: nowrap;
 }
-
 
 .empty-results {
     padding: 20px;
@@ -837,7 +738,6 @@ body {
     color: var(--muted);
 }
 
-
 .layer-toggle input {
     width: 13px;
     height: 13px;
@@ -847,13 +747,9 @@ body {
     cursor: pointer;
 }
 
-
 .layer-toggle:hover {
     color: var(--text);
 }
-/* -------------------------------------------------
-   ADD ARTISAN MODAL
-------------------------------------------------- */
 
 .artisan-modal {
     display: none;
@@ -864,14 +760,12 @@ body {
     z-index: 5000;
 }
 
-
 .artisan-modal.open {
     display: flex;
 
     align-items: center;
     justify-content: center;
 }
-
 
 .artisan-modal-backdrop {
     position: absolute;
@@ -881,7 +775,6 @@ body {
 
     backdrop-filter: blur(3px);
 }
-
 
 .artisan-modal-content {
     position: relative;
@@ -904,7 +797,6 @@ body {
     z-index: 1;
 }
 
-
 .artisan-modal-header {
     display: flex;
     justify-content: space-between;
@@ -914,7 +806,6 @@ body {
 
     margin-bottom: 24px;
 }
-
 
 .modal-eyebrow {
     display: block;
@@ -929,7 +820,6 @@ body {
     color: var(--accent);
 }
 
-
 .artisan-modal-header h2 {
     margin: 0;
 
@@ -940,7 +830,6 @@ body {
 
     color: var(--text);
 }
-
 
 .modal-close-btn {
     border: none;
@@ -957,15 +846,9 @@ body {
     padding: 0;
 }
 
-
 .modal-close-btn:hover {
     color: var(--accent);
 }
-
-
-/* -------------------------------------------------
-   MODAL FORM
-------------------------------------------------- */
 
 .modal-form-grid {
     display: grid;
@@ -975,7 +858,6 @@ body {
     gap: 16px;
 }
 
-
 .form-field {
     display: flex;
     flex-direction: column;
@@ -983,11 +865,9 @@ body {
     gap: 6px;
 }
 
-
 .form-field-full {
     grid-column: 1 / -1;
 }
-
 
 .form-field label {
     font-size: 11px;
@@ -995,7 +875,6 @@ body {
 
     color: var(--muted);
 }
-
 
 .form-field input,
 .form-field select,
@@ -1020,13 +899,11 @@ body {
         box-shadow 0.15s ease;
 }
 
-
 .form-field textarea {
     resize: vertical;
 
     min-height: 90px;
 }
-
 
 .form-field input:focus,
 .form-field select:focus,
@@ -1036,11 +913,6 @@ body {
     box-shadow:
         0 0 0 2px rgba(184, 95, 54, 0.1);
 }
-
-
-/* -------------------------------------------------
-   ARTISAN LOCATION BOX
-------------------------------------------------- */
 
 .location-picker-box {
     display: flex;
@@ -1059,13 +931,11 @@ body {
     background: var(--surface-alt);
 }
 
-
 .location-picker-box strong {
     font-size: 12px;
 
     color: var(--text);
 }
-
 
 .location-picker-box p {
     margin: 4px 0 0;
@@ -1077,7 +947,6 @@ body {
 
     color: var(--muted);
 }
-
 
 #artisanLocationDisplay {
     flex-shrink: 0;
@@ -1096,11 +965,6 @@ body {
     text-align: center;
 }
 
-
-/* -------------------------------------------------
-   FORM MESSAGE
-------------------------------------------------- */
-
 .artisan-form-message {
     min-height: 20px;
 
@@ -1109,20 +973,13 @@ body {
     font-size: 12px;
 }
 
-
 .artisan-form-message.error {
     color: #a23e32;
 }
 
-
 .artisan-form-message.success {
     color: #567256;
 }
-
-
-/* -------------------------------------------------
-   MODAL ACTIONS
-------------------------------------------------- */
 
 .modal-actions {
     display: flex;
@@ -1132,7 +989,6 @@ body {
 
     margin-top: 20px;
 }
-
 
 .modal-primary-btn,
 .modal-secondary-btn {
@@ -1150,7 +1006,6 @@ body {
         border-color 0.15s ease;
 }
 
-
 .modal-primary-btn {
     border: none;
 
@@ -1159,11 +1014,9 @@ body {
     color: white;
 }
 
-
 .modal-primary-btn:hover {
     background: var(--accent-dark);
 }
-
 
 .modal-secondary-btn {
     border: 1px solid var(--border);
@@ -1173,15 +1026,9 @@ body {
     color: var(--text);
 }
 
-
 .modal-secondary-btn:hover {
     background: var(--surface-alt);
 }
-
-
-/* -------------------------------------------------
-   MODAL RESPONSIVE
-------------------------------------------------- */
 
 @media (max-width: 650px) {
 
@@ -1193,32 +1040,26 @@ body {
         padding: 20px;
     }
 
-
     .modal-form-grid {
         grid-template-columns: 1fr;
     }
 
-
     .form-field-full {
         grid-column: auto;
     }
-
 
     .location-picker-box {
         flex-direction: column;
         align-items: flex-start;
     }
 
-
     #artisanLocationDisplay {
         width: 100%;
     }
 
-
     .modal-actions {
         flex-direction: column-reverse;
     }
-
 
     .modal-primary-btn,
     .modal-secondary-btn {
@@ -1282,7 +1123,6 @@ body {
     gap: 8px;
 }
 
-
 .edit-artisan-btn,
 .delete-artisan-btn {
     border: none;
@@ -1296,25 +1136,18 @@ body {
     cursor: pointer;
 }
 
-
 .edit-artisan-btn {
     color: var(--accent);
 }
-
 
 .delete-artisan-btn {
     color: #a23e32;
 }
 
-
 .edit-artisan-btn:hover,
 .delete-artisan-btn:hover {
     text-decoration: underline;
 }
-
-/* =========================================================
-   AUTHENTICATION
-========================================================= */
 
 .auth-page {
     min-height: 100vh;
@@ -1327,7 +1160,6 @@ body {
 
     background: var(--surface-alt);
 }
-
 
 .auth-card {
     width: min(460px, 100%);
@@ -1344,7 +1176,6 @@ body {
         rgba(45, 35, 28, 0.10);
 }
 
-
 .auth-logo {
     display: inline-block;
 
@@ -1358,11 +1189,9 @@ body {
     text-decoration: none;
 }
 
-
 .auth-heading {
     margin-bottom: 28px;
 }
-
 
 .auth-eyebrow {
     display: block;
@@ -1377,7 +1206,6 @@ body {
     letter-spacing: 1.2px;
 }
 
-
 .auth-heading h1 {
     margin: 0 0 10px;
 
@@ -1389,7 +1217,6 @@ body {
     font-weight: 500;
 }
 
-
 .auth-heading p {
     margin: 0;
 
@@ -1399,14 +1226,12 @@ body {
     line-height: 1.6;
 }
 
-
 .auth-form {
     display: flex;
     flex-direction: column;
 
     gap: 18px;
 }
-
 
 .auth-field {
     display: flex;
@@ -1415,14 +1240,12 @@ body {
     gap: 7px;
 }
 
-
 .auth-field label {
     color: var(--text);
 
     font-size: 12px;
     font-weight: 600;
 }
-
 
 .auth-field input {
     width: 100%;
@@ -1441,7 +1264,6 @@ body {
     outline: none;
 }
 
-
 .auth-field input:focus {
     border-color: var(--accent);
 
@@ -1450,14 +1272,12 @@ body {
         rgba(184, 95, 54, 0.10);
 }
 
-
 .field-help {
     color: var(--muted);
 
     font-size: 10px;
     line-height: 1.45;
 }
-
 
 .field-help ul {
     margin:
@@ -1466,13 +1286,11 @@ body {
     padding: 0;
 }
 
-
 .field-error {
     color: #a23e32;
 
     font-size: 11px;
 }
-
 
 .auth-error {
     padding: 10px 12px;
@@ -1486,11 +1304,9 @@ body {
     font-size: 12px;
 }
 
-
 .auth-error p {
     margin: 0;
 }
-
 
 .auth-primary-btn {
     width: 100%;
@@ -1512,12 +1328,10 @@ body {
     cursor: pointer;
 }
 
-
 .auth-primary-btn:hover {
     background:
         var(--accent-dark);
 }
-
 
 .auth-footer {
     margin:
@@ -1530,7 +1344,6 @@ body {
     font-size: 12px;
 }
 
-
 .auth-footer a {
     color: var(--accent);
 
@@ -1539,13 +1352,9 @@ body {
     text-decoration: none;
 }
 
-
 .auth-footer a:hover {
     text-decoration: underline;
 }
-/* =========================================================
-   NAVBAR AUTHENTICATION
-========================================================= */
 
 .nav-user-area {
     display: flex;
@@ -1553,14 +1362,12 @@ body {
     gap: 14px;
 }
 
-
 .nav-username {
     color: var(--text);
 
     font-size: 12px;
     font-weight: 600;
 }
-
 
 .nav-auth-link {
     border: none;
@@ -1577,11 +1384,9 @@ body {
     cursor: pointer;
 }
 
-
 .nav-auth-link:hover {
     color: var(--accent);
 }
-
 
 .nav-register-btn {
     padding: 10px 16px;
@@ -1598,24 +1403,17 @@ body {
     text-decoration: none;
 }
 
-
 .nav-register-btn:hover {
     background: var(--accent-dark);
 }
-
 
 .logout-form {
     margin: 0;
 }
 
-
 .nav-logout-btn {
     padding: 0;
 }
-
-/* =========================================================
-   ROUTE BUFFER QUERY (popup buttons + distance badge)
-========================================================= */
 
 .route-buffer-actions {
     display: flex;
@@ -1659,11 +1457,6 @@ body {
     color: #6b6259;
 }
 
-
-/* =========================================================
-   MAP LEGEND TOGGLE
-========================================================= */
-
 .legend-toggle {
     display: flex;
     align-items: center;
@@ -1698,11 +1491,6 @@ body {
     display: none;
 }
 
-
-/* =========================================================
-   KEYBOARD FOCUS (accessibility)
-========================================================= */
-
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -1711,11 +1499,6 @@ textarea:focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 2px;
 }
-
-
-/* =========================================================
-   HERITAGE ROUTES + ABOUT SECTIONS
-========================================================= */
 
 .routes-section,
 .about-section {
@@ -1838,11 +1621,6 @@ textarea:focus-visible {
     color: var(--accent-dark);
 }
 
-
-/* =========================================================
-   MOBILE MENU BUTTON (hidden on desktop)
-========================================================= */
-
 .nav-toggle {
     display: none;
     flex-direction: column;
@@ -1877,11 +1655,6 @@ textarea:focus-visible {
     transform: translateY(-7px) rotate(-45deg);
 }
 
-
-/* =========================================================
-   TABLET + PHONE LAYOUT
-========================================================= */
-
 @media (max-width: 820px) {
 
     .nav-toggle {
@@ -1894,7 +1667,6 @@ textarea:focus-visible {
         margin-left: auto;
     }
 
-    /* Menu drops down under the top bar when open */
     .topbar.nav-open .nav-links {
         display: flex;
         flex-direction: column;
@@ -1914,7 +1686,6 @@ textarea:focus-visible {
         border-bottom: 1px solid var(--border);
     }
 
-    /* Map overlays: no more overlapping */
     .selected-location-info {
         top: 12px;
         left: 54px;
@@ -1931,7 +1702,6 @@ textarea:focus-visible {
         max-width: calc(100% - 140px);
     }
 
-    /* sits above the OpenStreetMap attribution line */
     .reset-map-btn {
         bottom: 28px;
         right: 12px;
@@ -1952,7 +1722,6 @@ textarea:focus-visible {
     }
 
 }
-
 
 @media (max-width: 480px) {
 
@@ -1991,11 +1760,6 @@ textarea:focus-visible {
 
 }
 
-
-/* =========================================================
-   TOUCH TARGETS (WCAG 2.5.8 - at least 24 x 24 px)
-========================================================= */
-
 .nav-auth-link,
 .legend-toggle,
 .layer-toggle,
@@ -2025,11 +1789,6 @@ textarea:focus-visible {
     gap: 4px;
 }
 
-
-/* =========================================================
-   MARKER CLUSTERS (Leaflet.markercluster) - themed colours
-========================================================= */
-
 .marker-cluster-small,
 .marker-cluster-medium,
 .marker-cluster-large {
@@ -2044,8 +1803,6 @@ textarea:focus-visible {
     font-weight: 700;
 }
 
-
-/* Selected artisan card (after clicking it in the list) */
 .result-item {
     cursor: pointer;
 }
@@ -2055,8 +1812,6 @@ textarea:focus-visible {
     box-shadow: 0 0 0 2px var(--accent), var(--shadow);
 }
 
-
-/* "Showing X of Y - filters: ..." note above the results */
 .filter-note {
     margin: 4px 0 0;
     font-size: 13px;
@@ -2067,13 +1822,6 @@ textarea:focus-visible {
 .filter-note:empty {
     display: none;
 }
-
-
-/* =========================================================
-   LAYOUT: MAP ON TOP, ARTISAN CARDS IN A GRID BELOW
-   (no empty space next to the map, whatever the number of
-   artisans)
-========================================================= */
 
 .content-grid {
     grid-template-columns: 1fr;
@@ -2092,8 +1840,6 @@ textarea:focus-visible {
     align-items: stretch;
 }
 
-/* Cards in the same row get the same height; the footer
-   (region + Edit/Delete) sits at the bottom of each card. */
 .result-item {
     display: flex;
     flex-direction: column;
@@ -2104,7 +1850,6 @@ textarea:focus-visible {
     flex: 1;
 }
 
-/* Messages such as "No artisans found" span the full width */
 #results > :not(.result-item) {
     grid-column: 1 / -1;
 }

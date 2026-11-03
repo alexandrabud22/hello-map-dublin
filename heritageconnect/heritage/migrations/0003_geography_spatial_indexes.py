@@ -1,15 +1,4 @@
-"""
-Add GiST indexes on the geography casts of the point and line columns.
-
-The buffer query (routes/{id}/artisans_nearby) measures in metres with
-ST_DWithin(location::geography, path::geography, metres). A normal GiST
-index on the geometry column cannot be used for an expression on
-::geography, so these "expression indexes" make that query
-index-assisted as the data grows.
-"""
-
 from django.db import migrations
-
 
 class Migration(migrations.Migration):
 

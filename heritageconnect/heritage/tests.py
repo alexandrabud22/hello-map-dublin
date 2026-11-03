@@ -1,22 +1,4 @@
-"""
-HeritageConnect automated tests.
-
-Run inside Docker:
-    docker compose exec web python manage.py test heritage -v 2
-
-Django creates a separate temporary PostGIS test database, so these
-tests never touch your real data.
-
-Covered:
-  * Models      - automatic region detection, automatic route length
-  * Permissions - anonymous / normal user / owner / staff rules
-  * Validation  - bad query parameters and bad artisan data
-  * Robustness  - wrong/missing/garbage geometry, broken JSON,
-                  self-intersecting polygons, empty results
-  * Spatial     - radius, nearest, containment, intersection, buffer
-  * Pages       - home redirect and map page
-"""
-
+# Tests use a separate temporary database, not the saved workshop data.
 from django.contrib.auth.models import User
 from django.contrib.gis.geos import LineString, Point, Polygon
 from django.test import TestCase
@@ -24,7 +6,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import ArtisanLocation, CulturalRegion, HeritageRoute
-
 
 def square(min_lng, min_lat, max_lng, max_lat):
     return Polygon(
@@ -35,9 +16,8 @@ def square(min_lng, min_lat, max_lng, max_lat):
         srid=4326,
     )
 
-
 def artisan_feature(lng, lat, **properties):
-    """Build the GeoJSON Feature body the API expects."""
+
     data = {
         "name": "Test Workshop",
         "artisan_name": "Test Maker",
@@ -51,9 +31,7 @@ def artisan_feature(lng, lat, **properties):
         "properties": data,
     }
 
-
 class HeritageTestData(APITestCase):
-    """Shared test data: 2 regions, 1 route, 3 artisans, 3 users."""
 
     @classmethod
     def setUpTestData(cls):
@@ -63,7 +41,6 @@ class HeritageTestData(APITestCase):
             "staff", password="pass12345!", is_staff=True
         )
 
-        # Region A around Temple Bar, region B around the Liberties.
         cls.region_a = CulturalRegion.objects.create(
             name="Region A", region_type="Test",
             boundary=square(-6.272, 53.343, -6.258, 53.347),
@@ -73,33 +50,26 @@ class HeritageTestData(APITestCase):
             boundary=square(-6.290, 53.337, -6.272, 53.343),
         )
 
-        # Route runs east-west through region A only.
         cls.route = HeritageRoute.objects.create(
             name="Test Route", route_type="WALKING",
             path=LineString((-6.271, 53.3455), (-6.259, 53.3455), srid=4326),
         )
 
-        # Near the route, inside region A (about 55 m from the route).
         cls.near = ArtisanLocation.objects.create(
             name="Near", artisan_name="A", craft_type="POTTERY",
             address="x", location=Point(-6.265, 53.3460, srid=4326),
             owner=cls.owner,
         )
-        # Inside region B, about 400 m from the route.
+
         cls.liberties = ArtisanLocation.objects.create(
             name="Liberties", artisan_name="B", craft_type="WEAVING",
             address="x", location=Point(-6.280, 53.3410, srid=4326),
         )
-        # Far away (Howth), in no region.
+
         cls.far = ArtisanLocation.objects.create(
             name="Far", artisan_name="C", craft_type="OTHER",
             address="x", location=Point(-6.066, 53.387, srid=4326),
         )
-
-
-# =========================================================
-# Models
-# =========================================================
 
 class ModelTests(HeritageTestData):
 
@@ -109,14 +79,9 @@ class ModelTests(HeritageTestData):
         self.assertIsNone(self.far.region)
 
     def test_route_length_is_calculated_in_km(self):
-        # ~0.012 degrees of longitude at 53.3 N is roughly 0.8 km.
+
         self.assertIsNotNone(self.route.distance_km)
         self.assertAlmostEqual(float(self.route.distance_km), 0.80, delta=0.05)
-
-
-# =========================================================
-# Permissions
-# =========================================================
 
 class PermissionTests(HeritageTestData):
 
@@ -141,7 +106,7 @@ class PermissionTests(HeritageTestData):
         )
         self.assertEqual(response.status_code, 201, response.data)
         created = ArtisanLocation.objects.get(id=response.data["id"])
-        # "owner" in the request body is ignored - always the logged-in user.
+
         self.assertEqual(created.owner, self.other)
         self.assertEqual(created.region, self.region_a)
 
@@ -175,11 +140,6 @@ class PermissionTests(HeritageTestData):
         self.client.force_authenticate(self.staff)
         self.assertEqual(self.client.delete(url).status_code, 204)
 
-
-# =========================================================
-# Validation and error handling
-# =========================================================
-
 class ValidationTests(HeritageTestData):
 
     def assert_bad_request(self, url):
@@ -189,9 +149,9 @@ class ValidationTests(HeritageTestData):
 
     def test_radius_query_rejects_bad_parameters(self):
         base = "/api/heritage/artisans/within_radius/"
-        self.assert_bad_request(base)                                # missing
-        self.assert_bad_request(base + "?lat=abc&lng=-6.26&radius=1")  # text
-        self.assert_bad_request(base + "?lat=999&lng=-6.26&radius=1")  # range
+        self.assert_bad_request(base)
+        self.assert_bad_request(base + "?lat=abc&lng=-6.26&radius=1")
+        self.assert_bad_request(base + "?lat=999&lng=-6.26&radius=1")
         self.assert_bad_request(base + "?lat=53.3&lng=-6.26&radius=0")
         self.assert_bad_request(base + "?lat=53.3&lng=-6.26&radius=500")
 
@@ -210,7 +170,7 @@ class ValidationTests(HeritageTestData):
     def test_artisan_outside_ireland_is_rejected(self):
         self.client.force_authenticate(self.owner)
         response = self.client.post(
-            "/api/heritage/artisans/", artisan_feature(2.35, 48.85),  # Paris
+            "/api/heritage/artisans/", artisan_feature(2.35, 48.85),
             format="json",
         )
         self.assertEqual(response.status_code, 400)
@@ -228,16 +188,10 @@ class ValidationTests(HeritageTestData):
         self.client.force_authenticate(self.owner)
         response = self.client.post(
             "/api/heritage/artisans/",
-            # Point is in region A but region B is chosen.
             artisan_feature(-6.262, 53.345, region=self.region_b.id),
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-
-
-# =========================================================
-# Malformed geometry and unusual input
-# =========================================================
 
 class RobustnessTests(HeritageTestData):
 
@@ -266,7 +220,7 @@ class RobustnessTests(HeritageTestData):
         self.assertEqual(self.post_artisan(body, format="json").status_code, 400)
 
     def test_swapped_lat_lng_is_rejected(self):
-        # Common mistake: [lat, lng] instead of GeoJSON's [lng, lat].
+
         response = self.post_artisan(
             artisan_feature(53.345, -6.26), format="json"
         )
@@ -330,7 +284,7 @@ class RobustnessTests(HeritageTestData):
         )
 
     def test_radius_query_with_no_results_returns_empty_list(self):
-        # Middle of the Atlantic - valid input, nothing nearby.
+
         response = self.client.get(
             "/api/heritage/artisans/within_radius/?lat=50&lng=-20&radius=5"
         )
@@ -343,11 +297,6 @@ class RobustnessTests(HeritageTestData):
             "/api/heritage/artisans/nearest/?lat=53.35&lng=-6.26"
         )
         self.assertEqual(response.status_code, 404)
-
-
-# =========================================================
-# Spatial queries
-# =========================================================
 
 class SpatialQueryTests(HeritageTestData):
 
@@ -362,7 +311,7 @@ class SpatialQueryTests(HeritageTestData):
         )
         self.assertEqual(response.status_code, 200)
         names = self.names(response.data["results"]["features"])
-        self.assertEqual(names, ["Near", "Liberties"])  # nearest first
+        self.assertEqual(names, ["Near", "Liberties"])
         self.assertNotIn("Far", names)
 
     def test_1b_radius_combined_with_craft_filter(self):
@@ -375,8 +324,6 @@ class SpatialQueryTests(HeritageTestData):
         )
 
     def test_2b_nearest_combined_with_craft_filter(self):
-        # The closest artisan overall is "Near" (POTTERY), but the
-        # closest WEAVING artisan is "Liberties".
         response = self.client.get(
             "/api/heritage/artisans/nearest/"
             "?lat=53.3460&lng=-6.265&craft_type=WEAVING"
@@ -423,11 +370,6 @@ class SpatialQueryTests(HeritageTestData):
         self.assertEqual(
             self.names(wide["artisans"]["features"]), ["Near", "Liberties"]
         )
-
-
-# =========================================================
-# Pages
-# =========================================================
 
 class PageTests(TestCase):
 

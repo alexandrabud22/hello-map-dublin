@@ -1,20 +1,20 @@
 # HeritageConnect
 
-HeritageConnect is a map of traditional craft makers and heritage trails in Dublin,
-built for CMPU4058 Advanced Web Mapping, Assignment 1. It lets visitors find workshops
-near a location, explore cultural areas and see which makers are close to a walking route.
-Registered users can add a workshop and edit or delete their own entries.
+My project is HeritageConnect, a location-based application for finding traditional craft
+makers and heritage trails in Dublin. It is for CMPU4058 Advanced Web Mapping, Assignment 1.
+Visitors can find nearby workshops, explore cultural areas and find makers along a walking
+route. Registered users can add, edit and delete their own workshop.
 
-The sample workshops are fictional and the cultural boundaries are approximate.
+The sample makers are made-up examples and the area boundaries are approximate.
 
-## Features
+## What the app does
 
 - Leaflet map with OpenStreetMap tiles, clustered markers, cultural regions and heritage routes.
 - Search by name or place, and filter by craft type or cultural region.
 - Search within a radius or find the nearest maker to a selected location.
-- Find makers within 200 m or 500 m of a route and display the search corridor on the map.
-- Registration, login and workshop management. Regions and routes are managed by staff.
-- Responsive layout, labelled forms and keyboard support for the Add/Edit dialog.
+- Find makers within 200 m or 500 m of a route. The shaded area shows the search distance.
+- Users can register, log in and manage their own workshop. Staff manage regions and routes.
+- The layout changes for smaller screens. Forms have labels and the Add/Edit window supports keyboard use.
 
 ## Screenshots
 
@@ -25,14 +25,18 @@ The sample workshops are fictional and the cultural boundaries are approximate.
 More examples, including the mobile layout and Add Artisan form, are in
 [docs/screenshots](docs/screenshots/).
 
-## Technologies and structure
+## How it works
 
-The application uses Django and GeoDjango with Django REST Framework, PostgreSQL/PostGIS,
-Leaflet, Bootstrap 5 and JavaScript. Gunicorn runs Django, and Nginx handles incoming
-requests and static files. PgAdmin is included for database management.
+The map uses Leaflet and OpenStreetMap, with Bootstrap 5 and JavaScript for the interface.
+Django and GeoDjango handle the application, and Django REST Framework provides the API.
+PostgreSQL with PostGIS stores the data.
 
-There are four Docker services on the `heritage_net` network (`172.28.0.0/24`):
-Nginx, Django, PostGIS and PgAdmin. The database uses a named volume to retain its data.
+Gunicorn runs Django. Nginx receives browser requests and serves files such as CSS and
+JavaScript. PgAdmin is used to view and manage the database.
+
+The four Docker containers are Nginx, Django, PostGIS and PgAdmin. They communicate through
+the `heritage_net` network (`172.28.0.0/24`). A named volume keeps the database data when
+the containers are stopped and started again.
 
 ![Architecture diagram](docs/architecture-diagram.png)
 
@@ -42,9 +46,12 @@ The models are in `heritage/models.py`, the API views and validation are in
 
 ## Database and spatial queries
 
-The three spatial models are artisan locations (Point), cultural regions (Polygon)
-and heritage routes (LineString). They use SRID 4326 for GeoJSON and Leaflet.
-Route lengths are calculated in EPSG:2157 so the measurements are in metres.
+Workshops are stored as points, cultural areas as polygons and heritage routes as lines.
+They use SRID 4326, which stores longitude and latitude coordinates. The API sends the
+locations to Leaflet as GeoJSON.
+
+For route lengths, the line is converted to EPSG:2157 to measure it in metres, then the
+length is divided by 1,000 to get kilometres.
 
 | Query | Purpose | Main operation |
 |---|---|---|
@@ -54,14 +61,14 @@ Route lengths are calculated in EPSG:2157 so the measurements are in metres.
 | Intersection | Find routes crossing a region | `ST_Intersects` |
 | Route buffer | Find makers close to a trail | `ST_Buffer` and `ST_DWithin` on geography |
 
-Geometry fields have GiST indexes. Migration `0003` also adds indexes on the geography
-casts used for route searches. With the small sample dataset, PostgreSQL may choose
-sequential scans instead.
+The spatial fields have GiST indexes to help with location searches. Migration `0003`
+also adds indexes for the route searches that measure distance in metres. With this small
+dataset, PostgreSQL may read all the rows because that can be quicker than using an index.
 
 The [database schema documentation](docs/database-schema.md) includes the fields,
 relationships and schema diagram. The `explain_spatial_queries` management command
-shows example plans with sequential scans disabled for that session; it demonstrates
-index availability rather than a performance benchmark.
+shows which indexes the queries can use. It temporarily discourages full-table scans,
+so the output is an index check, not a measurement of how fast the app is.
 
 ## Running locally
 
@@ -91,8 +98,8 @@ in the `heritageconnect` folder containing `compose.yaml`. Ports 8000 and 5050 m
    docker compose ps
    ```
 
-   Wait for `web` and `db` to show as healthy. Django applies migrations and collects
-   static files on startup.
+   Wait for `web` and `db` to show as healthy. On startup, Django sets up the database tables
+   from the migrations and gathers the CSS, JavaScript and other static files.
 
 3. Load the sample data and demo account:
 
@@ -125,11 +132,11 @@ It owns Meath Street Basketry, which can be used to try editing. This account is
 assessment only.
 
 Use `docker compose logs -f web` to inspect application logs. Stop with
-`docker compose down` and start again with `docker compose up -d`. The database volume
-is retained; adding `-v` to the stop command deletes the volumes and their data.
+`docker compose down` and start again with `docker compose up -d`. The saved data stays
+in the database volume. Adding `-v` to the stop command deletes the volumes and their data.
 
-Code is built into the image, so rebuild after changes. For development with source
-mounts and reload, set `DJANGO_DEBUG=True` and use:
+Rebuild the image after changing the code. For development, the following command uses
+the files from the project folder directly. Set `DJANGO_DEBUG=True` to enable reload:
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml up -d
@@ -154,9 +161,8 @@ have Edit and Delete controls. Staff can also manage entries through Django admi
 
 ## API
 
-The [Swagger documentation](http://localhost:8000/api/docs/) lists the endpoints and
-parameters. Spatial records are returned as GeoJSON. List endpoints use pagination
-with 20 records per page.
+Open the [Swagger documentation](http://localhost:8000/api/docs/) to see and try the API
+endpoints. Locations are returned as GeoJSON. Lists return 20 records per page.
 
 | Endpoint under `/api/heritage/` | Purpose |
 |---|---|
@@ -169,9 +175,9 @@ with 20 records per page.
 | `routes/intersecting_region/?region_id=1` | Routes intersecting a region |
 | `routes/{id}/artisans_nearby/?distance=200` | Makers near a route, distance in metres |
 
-Anyone can read. Logged-in users can create workshops; only their owner or staff can
-update or delete them. Region and route writes require staff access. API writes use
-session authentication and a CSRF token.
+Anyone can view the data. Users must log in to add a workshop, and only the owner or
+staff can edit or delete it. Only staff can change regions and routes. Requests that
+change data use the login session and a CSRF token.
 
 ## Testing
 
@@ -181,45 +187,49 @@ Run the automated tests with:
 docker compose exec web python manage.py test heritage -v 2
 ```
 
-The test suite in `heritage/tests.py` covers spatial queries, permissions, validation,
-malformed geometry, model calculations and page responses. Django runs these against
-a separate temporary PostGIS database.
+The tests in `heritage/tests.py` check that location searches work, users can only change
+workshops they have permission to change, and incorrect information is rejected. They
+also check invalid shapes, route-length calculations and whether pages load. Django uses
+a separate temporary database for the tests, so they do not change the saved workshops.
 
-The existing manual testing record covers Chrome and Safari on macOS, an iPhone-sized
-Chrome DevTools viewport, workshop CRUD, combined filters, route buffers and dialog
-keyboard behaviour. Evidence screenshots are in `docs/screenshots/`, including
+The project testing notes cover Chrome and Safari on macOS and a phone-sized view in
+Chrome DevTools. They include adding, editing and deleting workshops, combining filters,
+searching near routes and using the Add/Edit window with a keyboard.
+
+Screenshots are in `docs/screenshots/`, including
 [Lighthouse](docs/screenshots/A30-lighthouse-accessibility.png),
 [data after restart](docs/screenshots/A28-data-persists-after-restart.png) and
 [query plans](docs/screenshots/A29-spatial-index-query-plans.png).
-The recorded desktop Lighthouse accessibility score is 100; this does not replace a
-full manual accessibility review.
+The saved Lighthouse result shows an accessibility score of 100 on desktop. That does
+not mean every accessibility issue has been checked.
 
-## Security and deployment notes
+## Security and deployment
 
-Secrets are read from environment variables. The default setup disables Django debug
-mode, runs Django as a non-root user and exposes only Nginx and PgAdmin on the host.
-Write permissions are checked by the API. SQL values are parameterised, and user text
-is escaped before being inserted into HTML.
+Passwords and the Django secret key are set in `.env`. Debug mode is off in the default
+setup. Django runs as a non-root user, and only Nginx and PgAdmin have ports open on the
+computer.
 
-The application is deployed locally for this assignment. It has not been tested on a
-cloud host. To deploy on a Linux VM, install Docker, copy the project, configure `.env`
+The API checks permissions before allowing changes. SQL values are passed separately
+from the query text, and workshop text is escaped before it is displayed as HTML.
+
+This version runs locally in Docker. It has not been tested on a cloud server. To deploy on a Linux VM, install Docker, copy the project, configure `.env`
 and run the same build commands. Set the domain in `DJANGO_ALLOWED_HOSTS` and
 `DJANGO_CSRF_TRUSTED_ORIGINS`, configure HTTPS in Nginx, and restrict access to PgAdmin.
 Enable `DJANGO_SECURE_COOKIES=True` only after HTTPS is configured.
 
-## Limitations
+## Known limitations
 
-- Sample makers are fictional and cultural boundaries are approximate single polygons.
+- The makers are made-up examples. Cultural boundaries are approximate and each area is one polygon.
 - Routes are stored in advance, rather than calculated live. They use OpenStreetMap
   street data and OSRM walking routes.
 - Tiles and address lookup need internet access. Address lookup uses public Nominatim;
   choosing a point on the map is an alternative.
 - The local deployment uses HTTP, without a TLS certificate.
-- The small dataset is useful for demonstrating features, but does not establish
-  performance with a large number of workshops.
+- The dataset is small, so it has not shown how well the app works with a large number
+  of workshops.
 - The configured PostGIS image uses amd64 emulation on Apple Silicon.
 
-## Sources and acknowledgements
+## Credits
 
 Project setup follows the CMPU4058 lab exercises from Weeks 1–4.
 

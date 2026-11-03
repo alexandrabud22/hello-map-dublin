@@ -1,16 +1,3 @@
-"""
-Create (or reset) a demo account for markers / testers.
-
-    docker compose exec web python manage.py create_demo_user
-
-  * Username: demo   (normal user - NOT staff, cannot change regions/routes)
-  * Password: value of DEMO_USER_PASSWORD in .env, or the default below
-  * Also creates one artisan owned by the demo user ("Meath Street
-    Basketry"), so Edit/Delete can be tried immediately.
-
-This is a local demonstration account only. Never reuse this password.
-"""
-
 import os
 
 from django.contrib.auth.models import User
@@ -19,10 +6,8 @@ from django.core.management.base import BaseCommand
 
 from heritage.models import ArtisanLocation
 
-
 DEMO_USERNAME = "demo"
 DEFAULT_DEMO_PASSWORD = "HeritageDemo2026!"
-
 
 class Command(BaseCommand):
     help = "Create or reset the 'demo' user and a sample artisan it owns."
@@ -36,7 +21,6 @@ class Command(BaseCommand):
         user.is_superuser = False
         user.save()
 
-        # Remove the artisan created by older versions of this command.
         ArtisanLocation.objects.filter(
             owner=user, name="Demo Basket Weaver"
         ).delete()
