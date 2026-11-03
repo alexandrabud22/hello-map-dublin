@@ -1,44 +1,24 @@
 erDiagram
-    auth_user ||--o{ heritage_artisanlocation : "owns (owner_id)"
-    heritage_culturalregion ||--o{ heritage_artisanlocation : "contains (region_id)"
+    USER ||--o{ ARTISAN : owns
+    REGION ||--o{ ARTISAN : contains
 
-    auth_user {
-        int id PK
-        varchar username
-        bool is_staff
+    USER {
+        int id
+        string username
     }
-    heritage_culturalregion {
-        bigint id PK
-        varchar name
-        varchar region_type
-        text description
-        geometry_Polygon_4326 boundary "GiST index"
-        timestamptz created_at
-        timestamptz updated_at
+    REGION {
+        int id
+        string name
+        polygon boundary
     }
-    heritage_artisanlocation {
-        bigint id PK
-        int owner_id FK "nullable"
-        bigint region_id FK "nullable"
-        varchar name
-        varchar artisan_name
-        varchar craft_type "choice"
-        text description
-        varchar address
-        geometry_Point_4326 location "GiST index"
-        varchar phone
-        varchar website
-        varchar opening_hours
-        timestamptz created_at
-        timestamptz updated_at
+    ARTISAN {
+        int id
+        string name
+        string craft_type
+        point location
     }
-    heritage_heritageroute {
-        bigint id PK
-        varchar name
-        varchar route_type "choice"
-        text description
-        geometry_LineString_4326 path "GiST index"
-        numeric distance_km "auto-calculated"
-        timestamptz created_at
-        timestamptz updated_at
+    ROUTE {
+        int id
+        string name
+        line path
     }
