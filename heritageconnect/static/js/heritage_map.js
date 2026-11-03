@@ -398,6 +398,12 @@ function displayArtisans(features) {
 function updateResults(features) {
     resultsContainer.innerHTML = "";
 
+    // New results: start the scrollable list at the top again.
+    const resultsPanel = document.getElementById("resultsPanel");
+    if (resultsPanel) {
+        resultsPanel.scrollTop = 0;
+    }
+
     if (features.length === 0) {
         resultsContainer.innerHTML = `
             <div class="empty-results">

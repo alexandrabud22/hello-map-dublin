@@ -5,8 +5,8 @@ Load HeritageConnect sample data.
 
 What it does:
   * Replaces all cultural regions and heritage routes.
-  * Replaces SAMPLE artisans only - rows created by this command,
-    recognised by the SAMPLE_NOTE marker in their description.
+  * Replaces SAMPLE artisans only - rows created by this command
+    (no owner, and a name from the ARTISANS list below).
     Every other artisan (created by users) is kept.
   * Re-links every artisan to the region that spatially contains it.
 
@@ -22,9 +22,6 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from heritage.models import ArtisanLocation, CulturalRegion, HeritageRoute
-
-
-SAMPLE_NOTE = " (Sample data - fictional maker.)"
 
 
 REGIONS = [
@@ -146,11 +143,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Loading HeritageConnect sample data...")
 
-        # Only delete rows this command created earlier (marked with
-        # SAMPLE_NOTE). User-created artisans are never deleted.
+        # Only delete rows this command created earlier: no owner and a
+        # name from the sample list. User-created artisans are never deleted.
+        sample_names = [artisan[0] for artisan in ARTISANS]
         deleted_artisans, _ = (
             ArtisanLocation.objects
-            .filter(owner__isnull=True, description__endswith=SAMPLE_NOTE)
+            .filter(owner__isnull=True, name__in=sample_names)
             .delete()
         )
         HeritageRoute.objects.all().delete()
@@ -191,13 +189,13 @@ class Command(BaseCommand):
                 address=address,
                 location=Point(lng, lat, srid=4326),
                 opening_hours=hours,
-                description=description + SAMPLE_NOTE,
+                description=description,
             )
 
-        # Re-link all non-sample artisans to the new regions.
+        # Re-link all other (user-created) artisans to the new regions.
         relinked = 0
         for artisan in ArtisanLocation.objects.exclude(
-            description__endswith=SAMPLE_NOTE
+            owner__isnull=True, name__in=sample_names
         ):
             artisan.region = (
                 CulturalRegion.objects

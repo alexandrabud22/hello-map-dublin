@@ -5,8 +5,8 @@ Create (or reset) a demo account for markers / testers.
 
   * Username: demo   (normal user - NOT staff, cannot change regions/routes)
   * Password: value of DEMO_USER_PASSWORD in .env, or the default below
-  * Also creates one artisan owned by the demo user, so Edit/Delete
-    can be tried immediately.
+  * Also creates one artisan owned by the demo user ("Meath Street
+    Basketry"), so Edit/Delete can be tried immediately.
 
 This is a local demonstration account only. Never reuse this password.
 """
@@ -36,18 +36,22 @@ class Command(BaseCommand):
         user.is_superuser = False
         user.save()
 
+        # Remove the artisan created by older versions of this command.
+        ArtisanLocation.objects.filter(
+            owner=user, name="Demo Basket Weaver"
+        ).delete()
+
         artisan, _ = ArtisanLocation.objects.update_or_create(
             owner=user,
-            name="Demo Basket Weaver",
+            name="Meath Street Basketry",
             defaults={
-                "artisan_name": "Demo User",
+                "artisan_name": "Róisín Daly",
                 "craft_type": "WEAVING",
                 "address": "Meath Street, Dublin 8",
                 "location": Point(-6.2780, 53.3405, srid=4326),
                 "opening_hours": "10:00 - 16:00",
                 "description": (
-                    "Artisan owned by the demo account - try Edit or "
-                    "Delete on it."
+                    "Hand-woven willow baskets and traditional Irish creels."
                 ),
             },
         )

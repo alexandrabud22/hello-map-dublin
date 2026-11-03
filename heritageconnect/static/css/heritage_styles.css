@@ -2067,3 +2067,50 @@ textarea:focus-visible {
 .filter-note:empty {
     display: none;
 }
+
+
+/* =========================================================
+   LAYOUT: MAP ON TOP, ARTISAN CARDS IN A GRID BELOW
+   (no empty space next to the map, whatever the number of
+   artisans)
+========================================================= */
+
+.content-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 28px;
+}
+
+.results-panel {
+    min-height: 0;
+}
+
+#results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+}
+
+/* Cards in the same row get the same height; the footer
+   (region + Edit/Delete) sits at the bottom of each card. */
+.result-item {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.result-item .result-description {
+    flex: 1;
+}
+
+/* Messages such as "No artisans found" span the full width */
+#results > :not(.result-item) {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 1100px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -17,6 +17,8 @@ from django.contrib.gis.measure import D
 from django.db import connection
 from django.shortcuts import redirect, render
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -95,6 +97,31 @@ def degrees_covering_km(km, latitude):
     return km / km_per_degree
 
 
+# ---- OpenAPI (Swagger) documentation of the query parameters ----------
+LAT_PARAM = OpenApiParameter(
+    "lat", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True,
+    description="Latitude in WGS84 (-90 to 90), e.g. 53.3498",
+)
+LNG_PARAM = OpenApiParameter(
+    "lng", OpenApiTypes.FLOAT, OpenApiParameter.QUERY, required=True,
+    description="Longitude in WGS84 (-180 to 180), e.g. -6.2603",
+)
+FILTER_PARAMS = [
+    OpenApiParameter(
+        "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Optional text filter (name, maker, address, craft)",
+    ),
+    OpenApiParameter(
+        "craft_type", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Optional craft filter, e.g. POTTERY or WEAVING",
+    ),
+    OpenApiParameter(
+        "region", OpenApiTypes.INT, OpenApiParameter.QUERY,
+        description="Optional cultural region id",
+    ),
+]
+
+
 def bad_request(message):
     return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -152,6 +179,19 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
         # the request body, so users cannot create items as someone else.
         serializer.save(owner=self.request.user)
 
+    @extend_schema(
+        parameters=[
+            LAT_PARAM,
+            LNG_PARAM,
+            OpenApiParameter(
+                "radius", OpenApiTypes.FLOAT, OpenApiParameter.QUERY,
+                required=True,
+                description=f"Search radius in km (0.01 to {MAX_RADIUS_KM})",
+            ),
+            *FILTER_PARAMS,
+        ],
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
+    )
     @action(detail=False, methods=["get"])
     def within_radius(self, request):
         """
@@ -200,6 +240,14 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(
+        parameters=[LAT_PARAM, LNG_PARAM, *FILTER_PARAMS],
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    )
     @action(detail=False, methods=["get"])
     def nearest(self, request):
         """
@@ -269,6 +317,10 @@ class CulturalRegionViewSet(viewsets.ModelViewSet):
     search_fields = ["name", "region_type", "description"]
     ordering_fields = ["name"]
 
+    @extend_schema(
+        parameters=[],
+        responses={200: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
+    )
     @action(detail=True, methods=["get"])
     def artisans(self, request, pk=None):
         """
@@ -322,6 +374,20 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
     filterset_fields = ["route_type"]
     ordering_fields = ["name", "distance_km"]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "region_id", OpenApiTypes.INT, OpenApiParameter.QUERY,
+                required=True,
+                description="Id of the cultural region to test against",
+            ),
+        ],
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    )
     @action(detail=False, methods=["get"])
     def intersecting_region(self, request):
         """
@@ -365,6 +431,22 @@ class HeritageRouteViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "distance", OpenApiTypes.FLOAT, OpenApiParameter.QUERY,
+                description=(
+                    f"Buffer distance in metres (10 to {MAX_BUFFER_M}, "
+                    f"default {DEFAULT_BUFFER_M})"
+                ),
+            ),
+        ],
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    )
     @action(detail=True, methods=["get"])
     def artisans_nearby(self, request, pk=None):
         """

@@ -272,7 +272,7 @@ DigitalOcean):
 
 | Role | Username | Password | Can do |
 |---|---|---|---|
-| Normal user | `demo` | `HeritageDemo2026!` | Browse, add artisans, edit/delete **own** artisans (owns *Demo Basket Weaver*) |
+| Normal user | `demo` | `HeritageDemo2026!` | Browse, add artisans, edit/delete **own** artisans (owns *Meath Street Basketry*) |
 | Admin | create with `createsuperuser` | – | Everything, incl. regions & routes in `/admin/` |
 
 Create or reset the demo account at any time:
@@ -348,16 +348,16 @@ X-CSRFToken: <csrftoken cookie>
 ### Example – buffer query
 (IDs, distances and counts depend on the loaded data.)
 ```http
-GET /api/heritage/routes/3/artisans_nearby/?distance=200
+GET /api/heritage/routes/6/artisans_nearby/?distance=200
 ```
 ```json
 {
-  "route": { "id": 3, "name": "Liffey Quays Heritage Walk", "distance_km": "3.79" },
+  "route": { "id": 6, "name": "Liffey Quays Heritage Walk", "distance_km": "4.35" },
   "buffer_m": 200.0,
   "buffer": { "type": "Polygon", "coordinates": [ ... ] },
-  "count": 3,
+  "count": 4,
   "artisans": { "type": "FeatureCollection", "features": [
-    { "type": "Feature", "properties": { "name": "Temple Bar Pottery Studio", "distance_to_route_m": 64, ... } }
+    { "type": "Feature", "properties": { "name": "North Wall Sail & Canvas", "distance_to_route_m": 2, ... } }
   ] }
 }
 ```
