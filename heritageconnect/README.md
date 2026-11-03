@@ -38,40 +38,80 @@ and relationships.
 
 ## Local setup
 
-Requires Docker Desktop, Git and free ports 8000 and 5050. From the `heritageconnect` folder:
+Docker Desktop must be installed and running. Extract the submitted ZIP or clone the
+repository, then open a terminal in the `heritageconnect` folder containing `compose.yaml`.
+The application uses ports 8000 and 5050.
+
+### 1. Configure the environment
+
+Create the local configuration file:
 
 ```bash
 cp .env.example .env
 ```
 
-Set `POSTGRES_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` and `DJANGO_SECRET_KEY` in `.env`.
-Keep `DJANGO_DEBUG=False`. Do not commit the real `.env` or include it in the ZIP.
+In `.env`, replace the placeholder values for `POSTGRES_PASSWORD`,
+`PGADMIN_DEFAULT_PASSWORD` and `DJANGO_SECRET_KEY`. Use a long random value for the
+secret key. If Python 3 is available, this command generates one:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+The other values can remain as supplied for local assessment, including
+`DJANGO_DEBUG=False` and `DJANGO_SECURE_COOKIES=False`.
+
+### 2. Start the application
 
 ```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-Once `web` and `db` are healthy:
+The first build may take a few minutes. Wait until `web` and `db` show as healthy.
+Database migrations and static file collection run automatically during startup.
+
+### 3. Load the demonstration data
+
+On a fresh setup, run:
 
 ```bash
 docker compose exec web python manage.py load_heritage_data
 docker compose exec web python manage.py create_demo_user
 ```
 
+This loads the sample workshops, four cultural regions and three routes, and creates
+the demo account. Open [HeritageConnect](http://localhost:8000/).
+
+**Demo login:** `demo` / `HeritageDemo2026!`, unless `DEMO_USER_PASSWORD` was changed
+in `.env`. This account owns Meath Street Basketry for testing edit and delete.
+
 | Page | Address |
 |---|---|
-| App | http://localhost:8000/ |
+| Application | http://localhost:8000/ |
 | API documentation | http://localhost:8000/api/docs/ |
 | Django admin | http://localhost:8000/admin/ |
 | PgAdmin | http://localhost:5050/ |
 
-Demo login: `demo` / `HeritageDemo2026!` (unless changed in `.env`). The account owns
-Meath Street Basketry. For an admin account, run `docker compose exec web python manage.py createsuperuser`.
-PgAdmin connects to host `db`, port `5432`, with the database credentials from `.env`.
+An administrator account can be created to assess region and route management:
 
-Stop with `docker compose down`; restart with `docker compose up -d`. Do not add `-v`
-unless you want to delete the saved volumes. Rebuild the image after code changes.
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+For PgAdmin, sign in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from
+`.env`. Register a server using host `db`, port `5432`, and the `POSTGRES_DB`,
+`POSTGRES_USER` and `POSTGRES_PASSWORD` values from the same file.
+
+### Stopping and restarting
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+The database volume retains the saved data between runs, so the sample data does not
+need to be loaded again. Startup errors can be checked with `docker compose logs web`.
 
 ## Using the app
 
