@@ -7,6 +7,7 @@ from django.db import transaction
 
 from heritage.models import ArtisanLocation, CulturalRegion, HeritageRoute
 
+# Simplified area boundaries for the demo, not official boundaries.
 REGIONS = [
     {
         "name": "Temple Bar",
@@ -58,6 +59,7 @@ REGIONS = [
     },
 ]
 
+# Read the stored route shapes instead of requesting new routes.
 ROUTES_FILE = (
     Path(__file__).resolve().parents[2] / "data" / "heritage_routes.geojson"
 )
@@ -113,6 +115,7 @@ ARTISANS = [
 class Command(BaseCommand):
     help = "Load HeritageConnect sample regions, routes and artisans."
 
+    # Roll back the load if any part fails.
     @transaction.atomic
     def handle(self, *args, **options):
         self.stdout.write("Loading HeritageConnect sample data...")

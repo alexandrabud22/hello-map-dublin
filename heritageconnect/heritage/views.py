@@ -24,6 +24,7 @@ from .serializers import (
     HeritageRouteSerializer,
 )
 
+# Limit large searches to avoid requesting too much data.
 MAX_RADIUS_KM = 50
 
 DEFAULT_BUFFER_M = 200
@@ -193,6 +194,7 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
         except InvalidParameter as error:
             return bad_request(str(error))
 
+        # Keep the selected craft and text filters in the nearest search.
         filtered = self.filter_queryset(self.get_queryset())
         candidates = (
             filtered

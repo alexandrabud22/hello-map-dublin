@@ -1,3 +1,4 @@
+/* Shared colours and sizes used across the pages. */
 :root {
     --bg: #f6f3ed;
     --surface: #fffdf9;
@@ -288,6 +289,7 @@ body {
     font-weight: 600;
 }
 
+/* Keep the map and results beside each other on wider screens. */
 .content-grid {
     display: grid;
 
@@ -375,6 +377,7 @@ body {
     border-color: #b9c4b5;
 }
 
+/* Position the layer controls over the map. */
 .map-legend {
     position: absolute;
 

@@ -68,6 +68,7 @@ class CulturalRegionSerializer(GeoFeatureModelSerializer):
         validate_geometry_type(value, "Polygon")
         return validate_geometry_is_valid(value)
 
+# Return workshop data as GeoJSON so Leaflet can draw it.
 class ArtisanLocationSerializer(GeoFeatureModelSerializer):
     craft_type_display = serializers.CharField(
         source="get_craft_type_display", read_only=True
@@ -100,6 +101,7 @@ class ArtisanLocationSerializer(GeoFeatureModelSerializer):
             "created_at",
             "updated_at",
         )
+        # The user cannot change ownership through the form.
         read_only_fields = ("owner", "created_at", "updated_at")
 
     def validate_name(self, value):

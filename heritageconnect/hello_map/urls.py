@@ -7,6 +7,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from heritage.views import register_view
 
+# Send the home page to the map and keep API and account URLs here.
 urlpatterns = [
 
     path(
@@ -23,6 +24,7 @@ urlpatterns = [
 
     path("api/heritage/", include("heritage.urls")),
 
+    # Swagger uses this schema to show the API documentation.
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

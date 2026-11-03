@@ -3,6 +3,7 @@
 import os
 import sys
 
+# Run Django commands with this project's settings.
 def main():
 
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello_map.settings')

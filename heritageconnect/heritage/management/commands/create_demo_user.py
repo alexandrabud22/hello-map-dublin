@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 from heritage.models import ArtisanLocation
 
 DEMO_USERNAME = "demo"
+# This password is for the local demo account only.
 DEFAULT_DEMO_PASSWORD = "HeritageDemo2026!"
 
 class Command(BaseCommand):
@@ -21,10 +22,12 @@ class Command(BaseCommand):
         user.is_superuser = False
         user.save()
 
+        # Remove the old demo entry before setting up the current one.
         ArtisanLocation.objects.filter(
             owner=user, name="Demo Basket Weaver"
         ).delete()
 
+        # Running the command again updates the same workshop.
         artisan, _ = ArtisanLocation.objects.update_or_create(
             owner=user,
             name="Meath Street Basketry",

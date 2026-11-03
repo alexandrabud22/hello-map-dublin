@@ -30,6 +30,7 @@ class ArtisanLocation(models.Model):
         ("OTHER", "Other"),
     ]
 
+    # Keep the workshop if its user account is deleted.
     owner = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -102,6 +103,7 @@ class HeritageRoute(models.Model):
 
     path = models.LineStringField(srid=4326, spatial_index=True)
 
+    # This is calculated from the route when it is saved.
     distance_km = models.DecimalField(
         max_digits=8,
         decimal_places=2,

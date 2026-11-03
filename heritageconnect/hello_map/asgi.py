@@ -4,4 +4,5 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello_map.settings')
 
+# Django entry point for an ASGI server.
 application = get_asgi_application()

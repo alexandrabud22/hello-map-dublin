@@ -3,6 +3,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Read the secret from the environment so it stays out of the code.
 SECRET_KEY = (
     os.getenv("SECRET_KEY")
     or os.getenv("DJANGO_SECRET_KEY")
@@ -91,6 +92,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "hello_map.wsgi.application"
 
+# Use the PostGIS backend so Django can work with spatial fields.
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
@@ -139,6 +141,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 
+# Collected files are shared with Nginx through the static volume.
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STATICFILES_DIRS = [
@@ -146,6 +149,7 @@ STATICFILES_DIRS = [
 ]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Use login sessions for the API, with filtering and paginated lists.
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -199,6 +203,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 8
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Enable these settings only when the site is served over HTTPS.
 if os.getenv("DJANGO_SECURE_COOKIES", "False").lower() == "true":
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

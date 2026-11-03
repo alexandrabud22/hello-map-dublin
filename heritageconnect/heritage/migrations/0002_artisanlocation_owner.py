@@ -2,6 +2,7 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
+# Link workshops to the user who owns them.
 class Migration(migrations.Migration):
 
     dependencies = [

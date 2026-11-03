@@ -7,6 +7,7 @@ class IsOwnerOrReadOnly(BasePermission):
         if request.method in SAFE_METHODS:
             return True
 
+        # Use the logged-in account for the ownership check.
         user = request.user
 
         return bool(

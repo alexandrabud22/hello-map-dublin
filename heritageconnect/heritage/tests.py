@@ -31,6 +31,7 @@ def artisan_feature(lng, lat, **properties):
         "properties": data,
     }
 
+# Reuse the same sample users, regions and workshops across the tests.
 class HeritageTestData(APITestCase):
 
     @classmethod
@@ -83,6 +84,7 @@ class ModelTests(HeritageTestData):
         self.assertIsNotNone(self.route.distance_km)
         self.assertAlmostEqual(float(self.route.distance_km), 0.80, delta=0.05)
 
+# Check what visitors, owners and staff are allowed to change.
 class PermissionTests(HeritageTestData):
 
     def test_anyone_can_read(self):
@@ -193,6 +195,7 @@ class ValidationTests(HeritageTestData):
         )
         self.assertEqual(response.status_code, 400)
 
+# Bad input should return an error response rather than crash the API.
 class RobustnessTests(HeritageTestData):
 
     def post_artisan(self, body, **kwargs):
@@ -298,6 +301,7 @@ class RobustnessTests(HeritageTestData):
         )
         self.assertEqual(response.status_code, 404)
 
+# Check which workshops and routes each spatial search returns.
 class SpatialQueryTests(HeritageTestData):
 
     @staticmethod

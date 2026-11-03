@@ -3,6 +3,7 @@ from django.db import connection
 
 from heritage.models import HeritageRoute
 
+# Example queries for checking which spatial indexes are available.
 QUERIES = [
     (
         "1. Radius search - GiST index on location (ST_DWithin pre-filter)",

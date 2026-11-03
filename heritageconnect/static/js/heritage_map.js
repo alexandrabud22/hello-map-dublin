@@ -34,6 +34,7 @@ const currentUser = {
         heritageUserData?.dataset.username || ""
 };
 
+// Group nearby markers so they do not cover each other.
 const artisanLayer = (
     typeof L.markerClusterGroup === "function"
         ? L.markerClusterGroup({
@@ -859,6 +860,7 @@ async function filterByRegion() {
     }
 }
 
+// Reuse this point for nearby and nearest searches.
 function selectMapLocation(
     lat,
     lng
@@ -1519,6 +1521,7 @@ async function geocodeArtisanAddress() {
     }
 }
 
+// Fill the form with the existing workshop before saving changes.
 function openEditArtisanModal(
     feature
 ) {
@@ -1982,6 +1985,7 @@ async function deleteArtisan(
     }
 }
 
+// Clear the searches and restore the full workshop list.
 function resetMap() {
     bufferLayer.clearLayers();
 
@@ -2562,6 +2566,7 @@ legendToggle?.addEventListener("click", () => {
 
 setLegendCollapsed(window.matchMedia("(max-width: 820px)").matches);
 
+// Load the regions and routes along with the workshop markers.
 async function initialiseMap() {
     await loadArtisans();
     await loadRegions();

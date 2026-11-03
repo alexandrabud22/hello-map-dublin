@@ -61,6 +61,7 @@
             class="auth-form"
         >
 
+            {% comment %}Protect the form submission with Django's CSRF token.{% endcomment %}
             {% csrf_token %}
 
             {% if form.non_field_errors %}

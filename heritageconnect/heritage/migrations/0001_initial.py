@@ -2,6 +2,7 @@ import django.contrib.gis.db.models.fields
 import django.db.models.deletion
 from django.db import migrations, models
 
+# Create the workshop, region and route tables.
 class Migration(migrations.Migration):
 
     initial = True

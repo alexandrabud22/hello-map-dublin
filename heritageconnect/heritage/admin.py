@@ -3,6 +3,7 @@ from django.contrib.gis.admin import GISModelAdmin
 
 from .models import ArtisanLocation, CulturalRegion, HeritageRoute
 
+# GISModelAdmin gives staff a map for editing the spatial fields.
 @admin.register(ArtisanLocation)
 class ArtisanLocationAdmin(GISModelAdmin):
     list_display = (

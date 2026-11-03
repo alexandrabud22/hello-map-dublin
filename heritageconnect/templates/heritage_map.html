@@ -178,6 +178,7 @@
 
     </section>
 
+    {% comment %}Filters used by the map and workshop list.{% endcomment %}
     <section class="filters-panel">
 
         <div class="filter search-filter">
@@ -466,6 +467,7 @@
 
     </section>
 
+    {% comment %}Route cards are filled from the API by JavaScript.{% endcomment %}
     <section class="routes-section" id="routesSection">
 
         <div class="section-heading">
@@ -576,6 +578,7 @@
 
         </div>
 
+        {% comment %}Use the same form for adding and editing a workshop.{% endcomment %}
         <form id="artisanForm">
 
             {% csrf_token %}
