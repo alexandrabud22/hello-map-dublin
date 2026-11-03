@@ -1,365 +1,239 @@
-# HeritageConnect 
+# HeritageConnect
 
-**Discover the hands behind the heritage.**
-HeritageConnect is a location-based web application for finding traditional craft makers in
-Dublin – potters, weavers, woodcarvers, silversmiths – and exploring the city's cultural
-quarters and heritage trails on an interactive map.
+HeritageConnect is a map of traditional craft makers and heritage trails in Dublin,
+built for CMPU4058 Advanced Web Mapping, Assignment 1. It lets visitors find workshops
+near a location, explore cultural areas and see which makers are close to a walking route.
+Registered users can add a workshop and edit or delete their own entries.
 
-Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Services)**.
-
-| | |
-|---|---|
-| **Map** | http://localhost:8000/ |
-| **API (browsable)** | http://localhost:8000/api/heritage/ |
-| **API docs (Swagger)** | http://localhost:8000/api/docs/ |
-| **Django admin** | http://localhost:8000/admin/ |
-| **PgAdmin 4** | http://localhost:5050/ |
-| **Demo login** | `demo` / `HeritageDemo2026!` (see [Test credentials](#test-credentials)) |
-
----
+The sample workshops are fictional and the cultural boundaries are approximate.
 
 ## Features
 
-**Map & discovery**
-- Interactive Leaflet map with **OpenStreetMap** tiles, zoom/pan, popups and layer toggles
-- Three spatial layers: **artisans** (points), **cultural regions** (polygons), **heritage routes** (lines)
-- **Marker clustering** – nearby artisans merge into a numbered cluster that splits apart on zoom
-- Search by text, filter by craft type and by cultural region
-- **Search Nearby** – click the map (or use your location) and pick a radius (1–10 km)
-- **Find Nearest** – the closest maker to a chosen point
-- **Artisans along a route** – draws a 200 m / 500 m buffer corridor around a trail and lists the makers inside it, with their distance from the route
-- Heritage route cards and an About / how-to section
-
-**Accounts & data management (CRUD)**
-- Register, log in, log out
-- Logged-in users can **add** an artisan (address search *or* click on a mini map), and **edit / delete** their own artisans
-- The cultural region of a new artisan is **detected automatically** from its location
-- Regions and routes are curated by **staff** (Django admin or API)
-
-**Responsive & accessible**
-- Works on desktop, tablet and phone (mobile menu, collapsible map legend, no overlapping controls)
-- **Lighthouse accessibility score 100** (desktop): WCAG AA colour contrast, correct heading
-  order, 24 px touch targets
-- Labelled form fields, screen-reader status messages (`aria-live`), visible keyboard focus
-- Add/Edit dialog with `role="dialog"`, focus moved into the dialog, Tab kept inside it,
-  Escape to close, and focus returned to the button that opened it
-
----
+- Leaflet map with OpenStreetMap tiles, clustered markers, cultural regions and heritage routes.
+- Search by name or place, and filter by craft type or cultural region.
+- Search within a radius or find the nearest maker to a selected location.
+- Find makers within 200 m or 500 m of a route and display the search corridor on the map.
+- Registration, login and workshop management. Regions and routes are managed by staff.
+- Responsive layout, labelled forms and keyboard support for the Add/Edit dialog.
 
 ## Screenshots
 
-> All screenshots are in [`docs/screenshots/`](docs/screenshots/).
+![Main map](docs/screenshots/A23-main-map.png)
 
-| Interactive map | Artisans along a route (buffer query) |
-|---|---|
-| ![Main map](docs/screenshots/A23-main-map.png) | ![Route buffer](docs/screenshots/A21-route-buffer-query.png) |
+![Artisans near a heritage route](docs/screenshots/A21-route-buffer-query.png)
 
-| Mobile – menu | Mobile – route buffer | Add artisan form |
-|---|---|---|
-| ![Mobile menu](docs/screenshots/A22-mobile-responsive.png) | ![Mobile route buffer](docs/screenshots/A27-mobile-route-buffer.png) | ![Add artisan](docs/screenshots/A24-add-artisan-form.png) |
+More examples, including the mobile layout and Add Artisan form, are in
+[docs/screenshots](docs/screenshots/).
 
-| Docker containers on the custom network | Automated tests |
-|---|---|
-| ![Docker network](docs/screenshots/A18-docker-network-subnet.png) | ![Tests](docs/screenshots/A17-api-tests-passing.png) |
+## Technologies and structure
 
-| Accessibility (Lighthouse) | Data persists after restart |
-|---|---|
-| ![Lighthouse 100](docs/screenshots/A30-lighthouse-accessibility.png) | ![Persistence](docs/screenshots/A28-data-persists-after-restart.png) |
+The application uses Django and GeoDjango with Django REST Framework, PostgreSQL/PostGIS,
+Leaflet, Bootstrap 5 and JavaScript. Gunicorn runs Django, and Nginx handles incoming
+requests and static files. PgAdmin is included for database management.
 
-More: [containers](docs/screenshots/A19-docker-containers.png) ·
-[spatial index query plans](docs/screenshots/A29-spatial-index-query-plans.png) ·
-[Nginx security headers](docs/screenshots/A20-nginx-security-headers.png) ·
-[Swagger API docs](docs/screenshots/A25-swagger-api-docs.png) ·
-[Buffer query in Swagger](docs/screenshots/A26-swagger-buffer-query.png) ·
-[Django admin](docs/screenshots/A03-heritage-admin.png)
-
----
-
-## Technology stack
-
-| Layer | Technology |
-|---|---|
-| Database | PostgreSQL 16 + **PostGIS 3.4** (`postgis/postgis:16-3.4`), managed with **PgAdmin 4** |
-| Middle tier | Python 3.12, **Django 5.2** + GeoDjango, Django REST Framework, djangorestframework-gis, django-filter, drf-spectacular (OpenAPI) |
-| App server | **Gunicorn** (3 workers) |
-| Reverse proxy | **Nginx 1.27** (static files, security headers, gzip) |
-| Front end | **Leaflet 1.9.4** + **Leaflet.markercluster 1.5.3**, **Bootstrap 5.3**, vanilla JavaScript (Fetch API), Django templates |
-| Map tiles | **OpenStreetMap** |
-| Geocoding | OpenStreetMap **Nominatim** (address → coordinates in the Add Artisan form) |
-| Deployment | **Docker Compose** – 4 containers on an isolated bridge network |
-
----
-
-## Architecture
+There are four Docker services on the `heritage_net` network (`172.28.0.0/24`):
+Nginx, Django, PostGIS and PgAdmin. The database uses a named volume to retain its data.
 
 ![Architecture diagram](docs/architecture-diagram.png)
 
-*Diagram source: [`docs/diagrams/architecture.mmd`](docs/diagrams/architecture.mmd)*
+The models are in `heritage/models.py`, the API views and validation are in
+`heritage/views.py` and `heritage/serializers.py`, and the map interface is in
+`templates/heritage_map.html` and `static/`.
 
-### How a request flows
-1. The browser opens `http://localhost:8000` → **Nginx** (the only public entry point for the app).
-2. Requests for `/static/…` (CSS, JS) are answered by **Nginx** directly.
-3. Everything else is forwarded to **Gunicorn/Django** on the private network.
-4. Django runs the view, queries **PostGIS** through the ORM (or parameterised SQL), and
-   returns HTML or **GeoJSON**.
-5. **Leaflet** draws the GeoJSON on top of OpenStreetMap tiles.
+## Database and spatial queries
 
-### Model-View-Controller in this project
+The three spatial models are artisan locations (Point), cultural regions (Polygon)
+and heritage routes (LineString). They use SRID 4326 for GeoJSON and Leaflet.
+Route lengths are calculated in EPSG:2157 so the measurements are in metres.
 
-| MVC role | Django component | Files |
+| Query | Purpose | Main operation |
 |---|---|---|
-| **Model** | GeoDjango models (PostGIS tables) | `heritage/models.py` |
-| **View** (presentation) | Django template + Leaflet/JS/CSS | `templates/heritage_map.html`, `static/js/heritage_map.js`, `static/css/heritage_styles.css` |
-| **Controller** | DRF ViewSets, URL routing, serializers (validation), permissions | `heritage/views.py`, `heritage/urls.py`, `heritage/serializers.py`, `heritage/permissions.py` |
+| Radius search | Find makers within a distance of a point | `ST_DWithin` pre-filter and spherical distance |
+| Nearest maker | Find the closest workshop | KNN candidate search and spherical distance |
+| Containment | Find makers inside a cultural region | `ST_Within` |
+| Intersection | Find routes crossing a region | `ST_Intersects` |
+| Route buffer | Find makers close to a trail | `ST_Buffer` and `ST_DWithin` on geography |
 
-## Database & spatial queries
+Geometry fields have GiST indexes. Migration `0003` also adds indexes on the geography
+casts used for route searches. With the small sample dataset, PostgreSQL may choose
+sequential scans instead.
 
-Full documentation: **[`docs/database-schema.md`](docs/database-schema.md)**
+The [database schema documentation](docs/database-schema.md) includes the fields,
+relationships and schema diagram. The `explain_spatial_queries` management command
+shows example plans with sequential scans disabled for that session; it demonstrates
+index availability rather than a performance benchmark.
 
-![Database schema](docs/database-schema.png)
+## Running locally
 
-| Table | Geometry | Index |
-|---|---|---|
-| `heritage_culturalregion` | `boundary` – Polygon, SRID 4326 | GiST |
-| `heritage_artisanlocation` | `location` – Point, SRID 4326 | GiST |
-| `heritage_heritageroute` | `path` – LineString, SRID 4326 | GiST |
+Install Docker Desktop and Git, then download or clone this repository. Open a terminal
+in the `heritageconnect` folder containing `compose.yaml`. Ports 8000 and 5050 must be free.
 
-### Spatial queries
+1. Copy the environment template:
 
-| # | Question it answers | PostGIS | Endpoint |
-|---|---|---|---|
-| 1 | Which makers are within *r* km of me? | `ST_DWithin` (index pre-filter) + `ST_DistanceSphere` | `/api/heritage/artisans/within_radius/?lat=&lng=&radius=` |
-| 2 | Which maker is closest? | KNN `<->` (index-ordered) + `ST_DistanceSphere` | `/api/heritage/artisans/nearest/?lat=&lng=` |
-| 3 | Which makers are inside this cultural region? | `ST_Within` | `/api/heritage/regions/{id}/artisans/` |
-| 4 | Which routes pass through this region? | `ST_Intersects` | `/api/heritage/routes/intersecting_region/?region_id=` |
-| 5 | Which makers can I visit along this route? | `ST_Buffer`, `ST_DWithin`, `ST_Distance` (geography, metres) | `/api/heritage/routes/{id}/artisans_nearby/?distance=` |
+   ```bash
+   cp .env.example .env
+   ```
 
-Also: new artisans are linked to their region with `ST_Contains`, and route lengths are
-calculated by projecting the line to **EPSG:2157 (Irish Transverse Mercator)**.
+   Set `POSTGRES_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` and `DJANGO_SECRET_KEY` in `.env`.
+   A secret key can be generated with:
 
-### Query performance and indexes
-All geometry columns have **GiST spatial indexes**, plus geography indexes for the 200 m route search (migration `0003`).
-To see the indexes being used: `docker compose exec web python manage.py explain_spatial_queries`
-([example output](docs/screenshots/A29-spatial-index-query-plans.png)).
+   ```bash
+   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+   ```
 
----
+   Keep `DJANGO_DEBUG=False` for the assessment setup. Do not commit or include the real
+   `.env` in a submission ZIP.
 
-## Setup – local Docker deployment
+2. Build and start the containers:
 
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
-- Git
-- Free ports **8000** and **5050**
+   ```bash
+   docker compose up -d --build
+   docker compose ps
+   ```
 
-### 1. Get the code
-```bash
-git clone <repository-url>
-cd heritageconnect
-```
+   Wait for `web` and `db` to show as healthy. Django applies migrations and collects
+   static files on startup.
 
-### 2. Create your `.env` file
-```bash
-cp .env.example .env
-```
-Edit `.env` and set real values for `POSTGRES_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` and
-`DJANGO_SECRET_KEY`. Generate a secret key with:
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(50))"
-```
-`.env.example` starts in **production mode** (`DJANGO_DEBUG=False`), which is the
-setting used for assessment.
+3. Load the sample data and demo account:
 
-### 3. Build and start
-```bash
-docker compose up -d --build
-docker compose ps        # wait until web and db show "healthy"
-```
-On start-up the web container automatically runs database **migrations** and
-**collectstatic**, then starts **Gunicorn**. The application code is built **into the image**
-(no source-code mounts), so after changing code run `docker compose up -d --build`.
+   ```bash
+   docker compose exec web python manage.py load_heritage_data
+   docker compose exec web python manage.py create_demo_user
+   ```
 
-**Development mode (optional):** set `DJANGO_DEBUG=True` in `.env` and add the development
-override, which mounts the source code for live reload:
+   To manage regions and routes through Django admin, create an administrator:
+
+   ```bash
+   docker compose exec web python manage.py createsuperuser
+   ```
+
+4. Open [the application](http://localhost:8000/).
+
+| Service | Local address |
+|---|---|
+| Map | http://localhost:8000/ |
+| API | http://localhost:8000/api/heritage/ |
+| Swagger API documentation | http://localhost:8000/api/docs/ |
+| Django admin | http://localhost:8000/admin/ |
+| PgAdmin | http://localhost:5050/ |
+
+In PgAdmin, register the database with host `db`, port `5432`, and the database name,
+username and password from `.env`.
+
+The demo login is `demo` / `HeritageDemo2026!`, unless `DEMO_USER_PASSWORD` was changed.
+It owns Meath Street Basketry, which can be used to try editing. This account is for local
+assessment only.
+
+Use `docker compose logs -f web` to inspect application logs. Stop with
+`docker compose down` and start again with `docker compose up -d`. The database volume
+is retained; adding `-v` to the stop command deletes the volumes and their data.
+
+Code is built into the image, so rebuild after changes. For development with source
+mounts and reload, set `DJANGO_DEBUG=True` and use:
+
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml up -d
 ```
 
-### 4. Load sample data and accounts
-```bash
-docker compose exec web python manage.py load_heritage_data   # 4 regions, 3 routes, 12 artisans
-docker compose exec web python manage.py create_demo_user     # demo account
-docker compose exec web python manage.py createsuperuser      # your own admin (optional)
-```
+## Using the map
 
-### 5. Open the app
-- Map: **http://localhost:8000/**
-- PgAdmin: **http://localhost:5050/** → add a server with host **`db`**, port `5432`, and the
-  database user/password from `.env`
+Click a marker or an artisan card to view workshop details. Use the search box and craft
+filter to narrow the list, or select a cultural region to show makers inside its boundary.
 
-## Cloud deployment
+For a nearby search, click the map to choose a location, select a radius and press
+**Search Nearby**. **Find Nearest** uses the selected point too. The app can also use
+browser location if permission is granted.
 
-The assignment brief states that **local containerised deployment is sufficient**, so the
-application has **not** been deployed to a cloud provider. Because everything runs in Docker
-Compose, a cloud deployment would follow the same steps on a Linux VM (e.g. Azure, AWS EC2,
-DigitalOcean):
+In **Heritage routes**, choose **Show on map** or **Artisans within 200 m**. Route popups
+also offer a 500 m search. Use the layer checkboxes to hide or show map layers and
+**Reset map** to return to the initial view.
 
-1. Install Docker on the VM, clone the repository, create `.env`.
-2. Set `DJANGO_DEBUG=False`, add the server's domain to `DJANGO_ALLOWED_HOSTS` and
-   `DJANGO_CSRF_TRUSTED_ORIGINS`.
-3. Add HTTPS (e.g. Let's Encrypt certificate in Nginx), then set `DJANGO_SECURE_COOKIES=True`
-   in `.env` and run `docker compose up -d` (Compose passes it to Django, which then enables
-   secure cookies, HSTS and HTTPS redirect). Leave it `False` on plain HTTP, or the login
-   cookie will not be sent.
-4. Remove the public PgAdmin port or restrict it with a firewall.
-5. `docker compose up -d --build`.
+To add a workshop, register or log in and select **Add Artisan**. Enter an address or
+choose a point on the small map, complete the required fields and save. Your own entries
+have Edit and Delete controls. Staff can also manage entries through Django admin.
 
----
+## API
 
-## Test credentials
+The [Swagger documentation](http://localhost:8000/api/docs/) lists the endpoints and
+parameters. Spatial records are returned as GeoJSON. List endpoints use pagination
+with 20 records per page.
 
-| Role | Username | Password | Can do |
-|---|---|---|---|
-| Normal user | `demo` | `HeritageDemo2026!` | Browse, add artisans, edit/delete **own** artisans (owns *Meath Street Basketry*) |
-| Admin | create with `createsuperuser` | – | Everything, incl. regions & routes in `/admin/` |
-
-Create or reset the demo account at any time:
-```bash
-docker compose exec web python manage.py create_demo_user
-```
-The demo password is for local demonstration only (configurable via `DEMO_USER_PASSWORD`).
-
----
-
-## User guide
-
-| I want to… | How |
+| Endpoint under `/api/heritage/` | Purpose |
 |---|---|
-| Browse makers | Open the map. Click a marker for details, or click a card in the list to zoom to it. |
-| Search | Type in **Search** (name, maker, craft or place) and/or choose a **Craft category**. |
-| See one cultural area | Choose a **Cultural region**. Only makers inside that polygon are listed. |
-| Find makers near a place | Click the map (or allow location), choose a **Search radius**, press **Search Nearby**. |
-| Find the closest maker | Choose a point, press **◆ Find Nearest**. |
-| Plan a walk | Scroll to **Heritage routes** and press **Artisans within 200 m**, or click a route on the map and choose *within 200 m / 500 m*. |
-| Show/hide layers | Use the **Map layers** box on the map (tap it to open on mobile). |
-| Add my workshop | **Register / Login → + Add Artisan**. Type an address (it is found on the map) or click the mini map, then **Save**. |
-| Edit or delete | Your own artisans show **Edit** / **Delete** in the list. |
-| Start again | **Reset map**. |
+| `artisans/` and `artisans/{id}/` | List, create, read, update and delete workshops |
+| `artisans/within_radius/?lat=53.3498&lng=-6.2603&radius=3` | Radius search in kilometres |
+| `artisans/nearest/?lat=53.3498&lng=-6.2603` | Nearest workshop |
+| `regions/` and `regions/{id}/` | Cultural region records |
+| `regions/{id}/artisans/` | Makers inside a region |
+| `routes/` and `routes/{id}/` | Heritage route records |
+| `routes/intersecting_region/?region_id=1` | Routes intersecting a region |
+| `routes/{id}/artisans_nearby/?distance=200` | Makers near a route, distance in metres |
 
----
-
-## API documentation
-
-Interactive documentation: **http://localhost:8000/api/docs/** (OpenAPI/Swagger, generated by drf-spectacular).
-All spatial responses are **GeoJSON** (`Feature` / `FeatureCollection`).
-List endpoints are paginated (20 per page, follow `next`).
-
-### Endpoints
-
-| Method | URL | Who | Description |
-|---|---|---|---|
-| GET | `/api/heritage/artisans/` | anyone | List artisans. Query: `search`, `craft_type`, `region`, `owner`, `ordering`, `page` |
-| POST | `/api/heritage/artisans/` | logged in | Create artisan (owner = current user) |
-| GET | `/api/heritage/artisans/{id}/` | anyone | One artisan |
-| PUT / PATCH | `/api/heritage/artisans/{id}/` | owner / staff | Update |
-| DELETE | `/api/heritage/artisans/{id}/` | owner / staff | Delete |
-| GET | `/api/heritage/artisans/within_radius/?lat=&lng=&radius=` | anyone | **Proximity** (radius in km, 0.01–50) |
-| GET | `/api/heritage/artisans/nearest/?lat=&lng=` | anyone | **Nearest** artisan + distance |
-| GET | `/api/heritage/regions/` | anyone | List regions (with `artisan_count`) |
-| POST / PUT / PATCH / DELETE | `/api/heritage/regions/…` | staff | Manage regions |
-| GET | `/api/heritage/regions/{id}/artisans/` | anyone | **Containment** |
-| GET | `/api/heritage/routes/` | anyone | List routes. Query: `search`, `route_type`, `ordering` |
-| POST / PUT / PATCH / DELETE | `/api/heritage/routes/…` | staff | Manage routes |
-| GET | `/api/heritage/routes/intersecting_region/?region_id=` | anyone | **Intersection** |
-| GET | `/api/heritage/routes/{id}/artisans_nearby/?distance=` | anyone | **Buffer** (metres, 10–2000, default 200) |
-
----
-
-## Security
-
-| Area | Measure |
-|---|---|
-| Secrets | All passwords/keys in `.env` (git-ignored, Docker-ignored); `.env.example` has placeholders only |
-| Network | Database and Django are **not exposed** to the host – only Nginx (8000) and PgAdmin (5050) |
-| Containers | Django runs as a **non-root** user; code baked into the image (no source mounts in production); `.dockerignore` keeps `.env` and `.git` out of the image |
-| Django | `DEBUG` off by default, `ALLOWED_HOSTS` / CSRF trusted origins from `.env`, CORS restricted, session cookie HTTP-only, `X_FRAME_OPTIONS=DENY`, optional HTTPS settings (`DJANGO_SECURE_COOKIES`) |
-| Nginx | Hides version, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, request size limit |
-| API | Object-level permissions (owner / staff), rate limiting, input validation, owner always taken from the session |
-| Database | ORM queries + **parameterised** raw SQL (no string concatenation → no SQL injection); geometry type and validity checked before saving |
-| Front end | All user text is **HTML-escaped** before display (prevents stored XSS); CSRF token on every write |
-
----
+Anyone can read. Logged-in users can create workshops; only their owner or staff can
+update or delete them. Region and route writes require staff access. API writes use
+session authentication and a CSRF token.
 
 ## Testing
+
+Run the automated tests with:
 
 ```bash
 docker compose exec web python manage.py test heritage -v 2
 ```
-31 automated tests in [`heritage/tests.py`](heritage/tests.py), run against a temporary
-PostGIS test database:
 
-| Group | Tests |
-|---|---|
-| Models | automatic region detection, automatic route length |
-| Permissions | read access, anonymous blocked, owner set from session, owner-only edit, staff moderation, staff-only regions/routes |
-| Validation | bad / missing / out-of-range parameters, outside Ireland, bad phone, blank name, point outside chosen region |
-| Robustness | wrong geometry type, missing geometry, garbage coordinates, swapped lat/lng, broken JSON, self-intersecting polygon, one-point route, empty results, no data |
-| Spatial queries | radius (incl. ordering), nearest, containment, intersection, buffer (200 m vs 1 km) |
-| Pages | home redirect, map page loads Leaflet |
+The test suite in `heritage/tests.py` covers spatial queries, permissions, validation,
+malformed geometry, model calculations and page responses. Django runs these against
+a separate temporary PostGIS database.
 
-### Manual testing (3 November 2026)
+The existing manual testing record covers Chrome and Safari on macOS, an iPhone-sized
+Chrome DevTools viewport, workshop CRUD, combined filters, route buffers and dialog
+keyboard behaviour. Evidence screenshots are in `docs/screenshots/`, including
+[Lighthouse](docs/screenshots/A30-lighthouse-accessibility.png),
+[data after restart](docs/screenshots/A28-data-persists-after-restart.png) and
+[query plans](docs/screenshots/A29-spatial-index-query-plans.png).
+The recorded desktop Lighthouse accessibility score is 100; this does not replace a
+full manual accessibility review.
 
-Tested in **Google Chrome** and **Safari** on macOS, and in **Chrome DevTools device mode**
-(iPhone-sized viewport), with the production configuration (`DJANGO_DEBUG=False`).
+## Security and deployment notes
 
-| Check | How | Result |
-|---|---|---|
-| Log in as `demo`, add, edit and delete an artisan | Manual (Chrome) | ✅ |
-| Craft filter combined with Search Nearby | Manual (Chrome) | ✅ |
-| Route → "within 200 m": buffer corridor and distances | Manual (Chrome) | ✅ |
-| Clicking an artisan card scrolls to the map and opens its popup | Manual (Chrome) | ✅ |
-| Site loads and works in Safari | Manual (Safari) | ✅ |
-| Mobile layout and ☰ menu | Manual (Chrome device mode) | ✅ |
-| Lighthouse accessibility (desktop) | Chrome Lighthouse | ✅ 100 |
-| Data persists after `docker compose down` / `up` | Manual (terminal) | ✅ |
-| Dialog keyboard support (focus on open, Tab trap, Escape, focus return) | Scripted browser check | ✅ |
-| Permissions, validation and all spatial queries | Automated tests (33) | ✅ |
+Secrets are read from environment variables. The default setup disables Django debug
+mode, runs Django as a non-root user and exposes only Nginx and PgAdmin on the host.
+Write permissions are checked by the API. SQL values are parameterised, and user text
+is escaped before being inserted into HTML.
 
----
+The application is deployed locally for this assignment. It has not been tested on a
+cloud host. To deploy on a Linux VM, install Docker, copy the project, configure `.env`
+and run the same build commands. Set the domain in `DJANGO_ALLOWED_HOSTS` and
+`DJANGO_CSRF_TRUSTED_ORIGINS`, configure HTTPS in Nginx, and restrict access to PgAdmin.
+Enable `DJANGO_SECURE_COOKIES=True` only after HTTPS is configured.
 
-## Known issues & limitations
+## Limitations
 
-- **Sample data:** the 12 sample artisans are fictional; region boundaries are simplified
-  approximations of real Dublin areas. Heritage routes follow real streets (OSRM walking routes
-  on OpenStreetMap data), but they are pre-calculated and stored, not routed live in the app.
-- **HTTP only locally:** there is no TLS certificate in the local setup; HTTPS settings exist
-  but are switched off (`DJANGO_SECURE_COOKIES=False`).
-- **Geocoding:** address search uses the public Nominatim service, which has a usage limit
-  (about 1 request/second) and needs internet access. Clicking the mini map always works.
-- **Apple Silicon:** the official `postgis/postgis` image is amd64-only, so on M-series Macs
-  Docker runs it through emulation (declared with `platform: linux/amd64`). It works, but the
-  database starts a little slower.
-- **Small dataset:** with ~15 rows PostgreSQL chooses full table scans; the spatial indexes
-  pay off as data grows (see `explain_spatial_queries`).
-- **Regions** are single polygons (no multi-polygons) and regions/routes can only be edited
-  by staff (Django admin), not in the public map interface.
-- **Map tiles** come from the public OpenStreetMap tile servers, which are fine for a student
-  project but not for heavy production traffic.
-- **Development mode:** only with `DJANGO_DEBUG=True` **and** `compose.dev.yaml` do code changes
-  apply without a rebuild; the default production setup is used for demos and submission.
+- Sample makers are fictional and cultural boundaries are approximate single polygons.
+- Routes are stored in advance, rather than calculated live. They use OpenStreetMap
+  street data and OSRM walking routes.
+- Tiles and address lookup need internet access. Address lookup uses public Nominatim;
+  choosing a point on the map is an alternative.
+- The local deployment uses HTTP, without a TLS certificate.
+- The small dataset is useful for demonstrating features, but does not establish
+  performance with a large number of workshops.
+- The configured PostGIS image uses amd64 emulation on Apple Silicon.
 
----
+## Sources and acknowledgements
 
-## Acknowledgements & attribution
+Project setup follows the CMPU4058 lab exercises from Weeks 1–4.
 
-- Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors; geocoding by Nominatim
-- Heritage route geometry: walking routes between the trail's artisans, calculated once with
-  [OSRM](https://project-osrm.org/) (FOSSGIS server `routing.openstreetmap.de`) on OpenStreetMap
-  data (ODbL) and stored in `heritage/data/heritage_routes.geojson`
-- [Leaflet](https://leafletjs.com/), [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster), [Bootstrap](https://getbootstrap.com/),
-  [Django](https://www.djangoproject.com/), [Django REST Framework](https://www.django-rest-framework.org/),
-  [djangorestframework-gis](https://github.com/openwisp/django-rest-framework-gis),
-  [drf-spectacular](https://drf-spectacular.readthedocs.io/), [PostGIS](https://postgis.net/),
-  [Nginx](https://nginx.org/), [Gunicorn](https://gunicorn.org/)
-- Docker images: `postgis/postgis`, `dpage/pgadmin4`, `nginx`, `python`
-- Project setup based on the CMPU4058 lab exercises (Weeks 1–4)
+Map data is © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright),
+with address lookup from Nominatim. Route geometry was calculated using
+[OSRM](https://project-osrm.org/) on the FOSSGIS server (`routing.openstreetmap.de`)
+and is stored in `heritage/data/heritage_routes.geojson`.
 
+Libraries include [Django](https://www.djangoproject.com/),
+[Django REST Framework](https://www.django-rest-framework.org/),
+[GeoDjango/PostGIS](https://postgis.net/),
+[Leaflet](https://leafletjs.com/),
+[Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster),
+[Bootstrap](https://getbootstrap.com/),
+[djangorestframework-gis](https://github.com/openwisp/django-rest-framework-gis) and
+[drf-spectacular](https://drf-spectacular.readthedocs.io/).
+The containers use the Python, PostGIS, PgAdmin and Nginx images.
