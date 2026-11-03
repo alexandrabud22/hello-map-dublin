@@ -141,7 +141,9 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     # ?search=pottery  ?craft_type=WEAVING  ?region=2  ?ordering=-created_at
-    search_fields = ["name", "artisan_name", "address", "description"]
+    search_fields = [
+        "name", "artisan_name", "address", "description", "craft_type",
+    ]
     filterset_fields = ["craft_type", "region", "owner"]
     ordering_fields = ["name", "created_at", "craft_type"]
 
@@ -160,6 +162,7 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
 
         Example:
         /api/heritage/artisans/within_radius/?lat=53.3498&lng=-6.2603&radius=3
+        Optional filters: &search=pottery &craft_type=WEAVING &region=2
         """
         try:
             lat, lng, user_point = get_point_from_params(request.query_params)
@@ -170,7 +173,9 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
             return bad_request(str(error))
 
         artisans = (
-            self.get_queryset()
+            # filter_queryset applies ?search=, ?craft_type= and ?region=,
+            # so attribute filters and the spatial query work together.
+            self.filter_queryset(self.get_queryset())
             # Step 1 - index-assisted pre-filter (GiST, degrees box).
             .filter(
                 location__dwithin=(
@@ -204,6 +209,7 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
 
         Example:
         /api/heritage/artisans/nearest/?lat=53.3498&lng=-6.2603
+        Optional filters: &search=pottery &craft_type=WEAVING &region=2
         """
         try:
             lat, lng, user_point = get_point_from_params(request.query_params)
@@ -214,8 +220,11 @@ class ArtisanLocationViewSet(viewsets.ModelViewSet):
         # operator (GeometryDistance), which walks the GiST index
         # instead of measuring every row. It ranks in degrees, so take
         # a few candidates...
+        # filter_queryset applies ?search=, ?craft_type= and ?region=
+        # (e.g. "nearest POTTERY studio").
+        filtered = self.filter_queryset(self.get_queryset())
         candidates = (
-            self.get_queryset()
+            filtered
             .order_by(GeometryDistance("location", user_point))[:5]
         )
         # Step 2 - ...and pick the truly closest one in metres.

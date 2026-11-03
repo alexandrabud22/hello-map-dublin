@@ -346,6 +346,7 @@ X-CSRFToken: <csrftoken cookie>
 `201 Created` returns the new Feature, with `region` filled in automatically.
 
 ### Example – buffer query
+(IDs, distances and counts depend on the loaded data.)
 ```http
 GET /api/heritage/routes/3/artisans_nearby/?distance=200
 ```
@@ -432,6 +433,7 @@ heritageconnect/
 │   ├── admin.py              # Django admin (map widgets)
 │   ├── tests.py              # 31 automated tests
 │   ├── migrations/           # database schema migrations
+│   ├── data/                 # heritage_routes.geojson (street-following route geometry)
 │   └── management/commands/  # load_heritage_data, create_demo_user, explain_spatial_queries
 ├── templates/
 │   ├── heritage_map.html     # View – main page
@@ -452,7 +454,8 @@ heritageconnect/
 ## Known issues & limitations
 
 - **Sample data:** the 12 sample artisans are fictional; region boundaries are simplified
-  approximations of real Dublin areas.
+  approximations of real Dublin areas. Heritage routes follow real streets (OSRM walking routes
+  on OpenStreetMap data), but they are pre-calculated and stored, not routed live in the app.
 - **HTTP only locally:** there is no TLS certificate in the local setup; HTTPS settings exist
   but are switched off (`DJANGO_SECURE_COOKIES=False`).
 - **Geocoding:** address search uses the public Nominatim service, which has a usage limit
@@ -474,6 +477,9 @@ heritageconnect/
 ## Acknowledgements & attribution
 
 - Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors; geocoding by Nominatim
+- Heritage route geometry: walking routes between the trail's artisans, calculated once with
+  [OSRM](https://project-osrm.org/) (FOSSGIS server `routing.openstreetmap.de`) on OpenStreetMap
+  data (ODbL) and stored in `heritage/data/heritage_routes.geojson`
 - [Leaflet](https://leafletjs.com/), [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster), [Bootstrap](https://getbootstrap.com/),
   [Django](https://www.djangoproject.com/), [Django REST Framework](https://www.django-rest-framework.org/),
   [djangorestframework-gis](https://github.com/openwisp/django-rest-framework-gis),

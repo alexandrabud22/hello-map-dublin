@@ -14,6 +14,9 @@ All people and businesses below are FICTIONAL sample data placed on
 real Dublin streets. Coordinates are WGS84 (longitude, latitude).
 """
 
+import json
+from pathlib import Path
+
 from django.contrib.gis.geos import LineString, Point, Polygon
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -76,46 +79,18 @@ REGIONS = [
 ]
 
 
-ROUTES = [
-    {
-        "name": "Liberties Craft Trail",
-        "route_type": "CRAFT",
-        "description": (
-            "From Temple Bar past Christ Church into the heart of the "
-            "Liberties, ending at St Patrick's Cathedral."
-        ),
-        "path": [
-            (-6.2665, 53.3450), (-6.2705, 53.3440), (-6.2712, 53.3428),
-            (-6.2790, 53.3436), (-6.2752, 53.3415), (-6.2760, 53.3395),
-            (-6.2715, 53.3395),
-        ],
-    },
-    {
-        "name": "Liffey Quays Heritage Walk",
-        "route_type": "WALKING",
-        "description": (
-            "A riverside walk along the quays from the west of the city "
-            "to the Docklands, passing the Ha'penny Bridge."
-        ),
-        "path": [
-            (-6.2930, 53.3465), (-6.2830, 53.3462), (-6.2730, 53.3458),
-            (-6.2632, 53.3463), (-6.2592, 53.3470), (-6.2530, 53.3485),
-            (-6.2440, 53.3478), (-6.2370, 53.3470),
-        ],
-    },
-    {
-        "name": "Smithfield & Stoneybatter Makers Loop",
-        "route_type": "CULTURAL",
-        "description": (
-            "A short loop through Smithfield Square, Stoneybatter and "
-            "Arbour Hill."
-        ),
-        "path": [
-            (-6.2785, 53.3488), (-6.2850, 53.3528), (-6.2870, 53.3550),
-            (-6.2900, 53.3555), (-6.2880, 53.3500), (-6.2790, 53.3482),
-        ],
-    },
-]
+# Heritage routes follow real streets. The geometry comes from
+# heritage/data/heritage_routes.geojson: walking routes between the
+# artisans on each trail, calculated with OSRM on OpenStreetMap data
+# (c) OpenStreetMap contributors, ODbL, and simplified to about 2 m.
+ROUTES_FILE = (
+    Path(__file__).resolve().parents[2] / "data" / "heritage_routes.geojson"
+)
+
+
+def load_route_features():
+    with open(ROUTES_FILE, encoding="utf-8") as file:
+        return json.load(file)["features"]
 
 
 # (name, artisan, craft, address, lng, lat, hours, description)
@@ -194,13 +169,16 @@ class Command(BaseCommand):
                 boundary=boundary,
             )
 
-        for route in ROUTES:
+        for feature in load_route_features():
+            properties = feature["properties"]
             # distance_km is calculated in HeritageRoute.save()
             HeritageRoute.objects.create(
-                name=route["name"],
-                route_type=route["route_type"],
-                description=route["description"],
-                path=LineString(route["path"], srid=4326),
+                name=properties["name"],
+                route_type=properties["route_type"],
+                description=properties["description"],
+                path=LineString(
+                    feature["geometry"]["coordinates"], srid=4326
+                ),
             )
 
         for (name, artisan, craft, address, lng, lat,

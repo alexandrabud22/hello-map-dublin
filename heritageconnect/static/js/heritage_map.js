@@ -621,7 +621,7 @@ async function loadArtisans() {
             "Unable to load artisans."
         );
 
-        displayArtisans(
+        showResults(
             artisanData
         );
 
@@ -722,7 +722,7 @@ async function loadRoutes() {
             features,
             {
                 style: {
-                    color: "#b85f36",
+                    color: "#a2512e",
                     weight: 4,
                     opacity: 0.9,
                     dashArray: "7, 5"
@@ -794,73 +794,93 @@ async function loadRoutes() {
    SEARCH + CRAFT FILTER
 ========================================================= */
 
-function applyFilters() {
-    const searchValue =
-        searchInput.value
-            .toLowerCase()
-            .trim();
+/* =========================================================
+   COMBINED FILTERING
+   ---------------------------------------------------------
+   "baseFeatures" = the artisans returned by the last map search
+   (all artisans, a region, a radius search, nearest, or a route
+   corridor). The Search box, Craft category and Cultural region
+   filters are then applied ON TOP of that set, so all controls
+   work together instead of overriding each other.
+========================================================= */
 
-    const craftValue =
-        craftFilter.value;
+let baseFeatures = [];
 
-    const filtered =
-        artisanData.filter(
-            (feature) => {
-                const properties =
-                    feature.properties;
+function getActiveFilters() {
+    return {
+        search: searchInput.value.toLowerCase().trim(),
+        craft: craftFilter.value,
+        region: regionFilter.value,
+    };
+}
 
-                const name =
-                    properties.name || "";
+function matchesActiveFilters(feature) {
+    const { search, craft, region } = getActiveFilters();
+    const p = feature.properties;
 
-                const artisanName =
-                    properties.artisan_name || "";
+    const searchableText = [
+        p.name,
+        p.artisan_name,
+        p.address,
+        p.description,
+        p.craft_type_display,
+    ].join(" ").toLowerCase();
 
-                const address =
-                    properties.address || "";
-
-                const craftName =
-                    properties.craft_type_display || "";
-
-                const matchesSearch =
-                    name
-                        .toLowerCase()
-                        .includes(
-                            searchValue
-                        ) ||
-
-                    artisanName
-                        .toLowerCase()
-                        .includes(
-                            searchValue
-                        ) ||
-
-                    address
-                        .toLowerCase()
-                        .includes(
-                            searchValue
-                        ) ||
-
-                    craftName
-                        .toLowerCase()
-                        .includes(
-                            searchValue
-                        );
-
-                const matchesCraft =
-                    !craftValue ||
-                    properties.craft_type ===
-                        craftValue;
-
-                return (
-                    matchesSearch &&
-                    matchesCraft
-                );
-            }
-        );
-
-    displayArtisans(
-        filtered
+    return (
+        (!search || searchableText.includes(search)) &&
+        (!craft || p.craft_type === craft) &&
+        (!region || String(p.region) === region)
     );
+}
+
+// Query-string version of the filters, sent to the radius / nearest API
+// so the spatial query and the filters run together on the server.
+function filterQueryString() {
+    const { search, craft, region } = getActiveFilters();
+    const params = new URLSearchParams();
+
+    if (search) params.set("search", search);
+    if (craft) params.set("craft_type", craft);
+    if (region) params.set("region", region);
+
+    const text = params.toString();
+    return text ? `&${text}` : "";
+}
+
+function updateFilterNote(shown, total) {
+    const note = document.getElementById("filterNote");
+
+    if (!note) {
+        return;
+    }
+
+    const { search, craft, region } = getActiveFilters();
+    const active = [];
+
+    if (search) active.push(`"${search}"`);
+    if (craft) active.push(craftFilter.selectedOptions[0].text.trim());
+    if (region) active.push(regionFilter.selectedOptions[0].text.trim());
+
+    note.textContent = active.length
+        ? `Showing ${shown} of ${total} - filters: ${active.join(", ")}`
+        : "";
+}
+
+// Show a new base set of artisans, with the active filters applied.
+function showResults(features) {
+    baseFeatures = features;
+
+    const filtered = baseFeatures.filter(matchesActiveFilters);
+
+    displayArtisans(filtered);
+    updateFilterNote(filtered.length, baseFeatures.length);
+
+    return filtered;
+}
+
+
+function applyFilters() {
+    const filtered = showResults(baseFeatures);
 
     setStatus(
         `${filtered.length} matching artisans`
@@ -879,7 +899,7 @@ async function filterByRegion() {
         regionFilter.value;
 
     if (!regionId) {
-        displayArtisans(
+        showResults(
             artisanData
         );
 
@@ -914,7 +934,7 @@ async function filterByRegion() {
             data.artisans?.features ||
             [];
 
-        displayArtisans(
+        showResults(
             features
         );
 
@@ -967,6 +987,9 @@ function selectMapLocation(
         );
     }
 
+    // interactive: false = the marker is only a visual pin. Clicks pass
+    // straight through it to the route / region / map underneath, so it
+    // can never block a click on a heritage route.
     selectedLocationMarker =
         L.circleMarker(
             [lat, lng],
@@ -974,15 +997,11 @@ function selectMapLocation(
                 radius: 9,
                 color: "#3f4a3d",
                 weight: 3,
-                fillColor: "#b85f36",
-                fillOpacity: 1
+                fillColor: "#a2512e",
+                fillOpacity: 1,
+                interactive: false
             }
         ).addTo(map);
-
-    selectedLocationMarker
-        .bindPopup(
-            "<strong>Selected search location</strong>"
-        );
 
     if (
         selectedLocationInfo
@@ -1036,7 +1055,7 @@ async function runNearbySearch(
 
         const response =
             await fetch(
-                `/api/heritage/artisans/within_radius/?lat=${lat}&lng=${lng}&radius=${radius}`
+                `/api/heritage/artisans/within_radius/?lat=${lat}&lng=${lng}&radius=${radius}${filterQueryString()}`
             );
 
         const data =
@@ -1053,7 +1072,7 @@ async function runNearbySearch(
             data.results?.features ||
             [];
 
-        displayArtisans(
+        showResults(
             features
         );
 
@@ -1074,13 +1093,13 @@ async function runNearbySearch(
                         1000,
 
                     color:
-                        "#b85f36",
+                        "#a2512e",
 
                     weight: 2,
                     opacity: 0.7,
 
                     fillColor:
-                        "#b85f36",
+                        "#a2512e",
 
                     fillOpacity:
                         0.06
@@ -1169,7 +1188,7 @@ async function runNearestSearch(
 
         const response =
             await fetch(
-                `/api/heritage/artisans/nearest/?lat=${lat}&lng=${lng}`
+                `/api/heritage/artisans/nearest/?lat=${lat}&lng=${lng}${filterQueryString()}`
             );
 
         const data =
@@ -1185,7 +1204,7 @@ async function runNearestSearch(
         const feature =
             data.artisan;
 
-        displayArtisans(
+        showResults(
             [feature]
         );
 
@@ -1445,7 +1464,7 @@ function selectArtisanFormLocation(
                 radius: 9,
                 color: "#3f4a3d",
                 weight: 3,
-                fillColor: "#b85f36",
+                fillColor: "#a2512e",
                 fillOpacity: 1
             }
         ).addTo(
@@ -2223,7 +2242,7 @@ function resetMap() {
         }
     }
 
-    displayArtisans(
+    showResults(
         artisanData
     );
 
@@ -2603,10 +2622,10 @@ async function showArtisansAlongRoute(routeId, distanceMetres) {
 
         const corridor = L.geoJSON(data.buffer, {
             style: {
-                color: "#b85f36",
+                color: "#a2512e",
                 weight: 1,
                 dashArray: "4, 4",
-                fillColor: "#b85f36",
+                fillColor: "#a2512e",
                 fillOpacity: 0.08,
             },
             interactive: false,
@@ -2614,7 +2633,7 @@ async function showArtisansAlongRoute(routeId, distanceMetres) {
 
         const features = data.artisans?.features || [];
 
-        displayArtisans(features);
+        showResults(features);
 
         map.closePopup();
         map.fitBounds(corridor.getBounds(), { padding: [30, 30] });

@@ -365,6 +365,26 @@ class SpatialQueryTests(HeritageTestData):
         self.assertEqual(names, ["Near", "Liberties"])  # nearest first
         self.assertNotIn("Far", names)
 
+    def test_1b_radius_combined_with_craft_filter(self):
+        response = self.client.get(
+            "/api/heritage/artisans/within_radius/"
+            "?lat=53.3460&lng=-6.265&radius=2&craft_type=WEAVING"
+        )
+        self.assertEqual(
+            self.names(response.data["results"]["features"]), ["Liberties"]
+        )
+
+    def test_2b_nearest_combined_with_craft_filter(self):
+        # The closest artisan overall is "Near" (POTTERY), but the
+        # closest WEAVING artisan is "Liberties".
+        response = self.client.get(
+            "/api/heritage/artisans/nearest/"
+            "?lat=53.3460&lng=-6.265&craft_type=WEAVING"
+        )
+        self.assertEqual(
+            response.data["artisan"]["properties"]["name"], "Liberties"
+        )
+
     def test_2_nearest(self):
         response = self.client.get(
             "/api/heritage/artisans/nearest/?lat=53.387&lng=-6.07"
