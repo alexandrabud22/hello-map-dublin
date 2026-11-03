@@ -18,26 +18,6 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 
 ---
 
-## Contents
-
-1. [Features](#features)
-2. [Screenshots](#screenshots)
-3. [Technology stack](#technology-stack)
-4. [Architecture](#architecture)
-5. [Database & spatial queries](#database--spatial-queries)
-6. [Setup – local Docker deployment](#setup--local-docker-deployment)
-7. [Cloud deployment](#cloud-deployment)
-8. [Test credentials](#test-credentials)
-9. [User guide](#user-guide)
-10. [API documentation](#api-documentation)
-11. [Security](#security)
-12. [Testing](#testing)
-13. [Project structure](#project-structure)
-14. [Known issues & limitations](#known-issues--limitations)
-15. [Acknowledgements & attribution](#acknowledgements--attribution)
-
----
-
 ## Features
 
 **Map & discovery**
@@ -132,23 +112,6 @@ More: [containers](docs/screenshots/A19-docker-containers.png) ·
 | **View** (presentation) | Django template + Leaflet/JS/CSS | `templates/heritage_map.html`, `static/js/heritage_map.js`, `static/css/heritage_styles.css` |
 | **Controller** | DRF ViewSets, URL routing, serializers (validation), permissions | `heritage/views.py`, `heritage/urls.py`, `heritage/serializers.py`, `heritage/permissions.py` |
 
-### Containers and network
-
-| Service | Container | IP on `heritage_net` (172.28.0.0/24) | Host port |
-|---|---|---|---|
-| `nginx` | heritage_nginx | 172.28.0.40 | **8000** → 80 |
-| `web` (Gunicorn + Django) | heritage_web | 172.28.0.30 | – (private) |
-| `db` (PostGIS) | heritage_db | 172.28.0.10 | – (private) |
-| `pgadmin` | heritage_pgadmin | 172.28.0.20 | **5050** → 80 |
-
-| Volume | Purpose |
-|---|---|
-| `postgis_data` | Database files – data survives restarts |
-| `static_data` | Static files collected by Django, served by Nginx |
-| `pgadmin_data` | PgAdmin settings |
-
----
-
 ## Database & spatial queries
 
 Full documentation: **[`docs/database-schema.md`](docs/database-schema.md)**
@@ -175,19 +138,9 @@ Also: new artisans are linked to their region with `ST_Contains`, and route leng
 calculated by projecting the line to **EPSG:2157 (Irish Transverse Mercator)**.
 
 ### Query performance and indexes
-- Geometry columns have **GiST** indexes; migration `0003` adds GiST **expression indexes on
-  `location::geography` and `path::geography`** for the metre-based buffer query.
-- The radius search first uses an **index-friendly `ST_DWithin` box** (degrees), then checks the
-  exact distance only on the rows that pass.
-- The nearest search uses the PostGIS **KNN operator `<->`**, which walks the index instead of
-  measuring every row, then confirms the closest of the top 5 in metres.
-- See the query plans yourself:
-  ```bash
-  docker compose exec web python manage.py explain_spatial_queries
-  ```
-  ([example output](docs/screenshots/A29-spatial-index-query-plans.png))
-  (With only ~15 rows PostgreSQL normally prefers a full table scan, so this command switches
-  sequential scans off for its own connection to show how the indexes are used at scale.)
+All geometry columns have **GiST spatial indexes**, plus geography indexes for the 200 m route search (migration `0003`).
+To see the indexes being used: `docker compose exec web python manage.py explain_spatial_queries`
+([example output](docs/screenshots/A29-spatial-index-query-plans.png)).
 
 ---
 
@@ -242,20 +195,6 @@ docker compose exec web python manage.py createsuperuser      # your own admin (
 - Map: **http://localhost:8000/**
 - PgAdmin: **http://localhost:5050/** → add a server with host **`db`**, port `5432`, and the
   database user/password from `.env`
-
-### Useful commands
-| Task | Command |
-|---|---|
-| View logs | `docker compose logs -f web` |
-| Stop (keeps data) | `docker compose down` |
-| Start again | `docker compose up -d` |
-| Run tests | `docker compose exec web python manage.py test heritage -v 2` |
-| Show spatial query plans | `docker compose exec web python manage.py explain_spatial_queries` |
-| Rebuild after code changes | `docker compose up -d --build` |
-| Inspect network | `docker network inspect heritage_net` |
-| ⚠️ Delete everything incl. database | `docker compose down -v` |
-
----
 
 ## Cloud deployment
 
@@ -333,51 +272,6 @@ List endpoints are paginated (20 per page, follow `next`).
 | GET | `/api/heritage/routes/intersecting_region/?region_id=` | anyone | **Intersection** |
 | GET | `/api/heritage/routes/{id}/artisans_nearby/?distance=` | anyone | **Buffer** (metres, 10–2000, default 200) |
 
-### Example – create an artisan
-```http
-POST /api/heritage/artisans/
-Content-Type: application/json
-X-CSRFToken: <csrftoken cookie>
-
-{
-  "type": "Feature",
-  "geometry": { "type": "Point", "coordinates": [-6.2780, 53.3405] },
-  "properties": {
-    "name": "Meath Street Baskets",
-    "artisan_name": "Aoife Murphy",
-    "craft_type": "WEAVING",
-    "address": "Meath Street, Dublin 8",
-    "phone": "+353 1 555 0100"
-  }
-}
-```
-`201 Created` returns the new Feature, with `region` filled in automatically.
-
-### Example – buffer query
-(IDs, distances and counts depend on the loaded data.)
-```http
-GET /api/heritage/routes/6/artisans_nearby/?distance=200
-```
-```json
-{
-  "route": { "id": 6, "name": "Liffey Quays Heritage Walk", "distance_km": "4.35" },
-  "buffer_m": 200.0,
-  "buffer": { "type": "Polygon", "coordinates": [ ... ] },
-  "count": 4,
-  "artisans": { "type": "FeatureCollection", "features": [
-    { "type": "Feature", "properties": { "name": "North Wall Sail & Canvas", "distance_to_route_m": 2, ... } }
-  ] }
-}
-```
-
-### Errors
-| Status | When | Example body |
-|---|---|---|
-| 400 | Missing / invalid / out-of-range input | `{"error": "'lat' must be between -90 and 90."}` or `{"phone": ["Phone may only contain digits, spaces, +, -, ( and )."]}` |
-| 403 | Not logged in, or not the owner / staff | `{"detail": "You do not have permission to perform this action."}` |
-| 404 | Unknown id | `{"error": "Cultural region not found."}` |
-| 429 | Rate limit exceeded (120/min anonymous, 300/min logged in) | `{"detail": "Request was throttled. ..."}` |
-
 ---
 
 ## Security
@@ -429,48 +323,6 @@ Tested in **Google Chrome** and **Safari** on macOS, and in **Chrome DevTools de
 | Data persists after `docker compose down` / `up` | Manual (terminal) | ✅ |
 | Dialog keyboard support (focus on open, Tab trap, Escape, focus return) | Scripted browser check | ✅ |
 | Permissions, validation and all spatial queries | Automated tests (33) | ✅ |
-
----
-
-## Project structure
-
-```
-heritageconnect/
-├── compose.yaml              # 4 services, custom network, volumes (production-style)
-├── compose.dev.yaml          # development override: live code mounts
-├── Dockerfile                # Django/GeoDjango image (non-root)
-├── docker/entrypoint.sh      # migrate → collectstatic → gunicorn
-├── nginx/nginx.conf          # reverse proxy, static files, security headers
-├── .env.example              # environment variable template
-├── requirements.txt
-├── manage.py
-├── hello_map/                # Django project package
-│   ├── settings.py           # settings from environment variables
-│   └── urls.py               # top-level routes
-├── heritage/                 # HeritageConnect app
-│   ├── models.py             # Model – PostGIS tables
-│   ├── serializers.py        # GeoJSON + validation
-│   ├── views.py              # Controller – API + spatial queries
-│   ├── permissions.py        # owner / staff rules
-│   ├── urls.py               # API router
-│   ├── admin.py              # Django admin (map widgets)
-│   ├── tests.py              # 31 automated tests
-│   ├── migrations/           # database schema migrations
-│   ├── data/                 # heritage_routes.geojson (street-following route geometry)
-│   └── management/commands/  # load_heritage_data, create_demo_user, explain_spatial_queries
-├── templates/
-│   ├── heritage_map.html     # View – main page
-│   └── registration/         # login / register pages
-├── static/
-│   ├── js/heritage_map.js    # Leaflet map + API calls
-│   └── css/heritage_styles.css
-└── docs/
-    ├── database-schema.md
-    ├── architecture-diagram.png
-    ├── database-schema.png
-    ├── diagrams/             # Mermaid sources of the diagrams
-    └── screenshots/
-```
 
 ---
 
