@@ -43,6 +43,7 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 **Map & discovery**
 - Interactive Leaflet map with **OpenStreetMap** tiles, zoom/pan, popups and layer toggles
 - Three spatial layers: **artisans** (points), **cultural regions** (polygons), **heritage routes** (lines)
+- **Marker clustering** – nearby artisans merge into a numbered cluster that splits apart on zoom
 - Search by text, filter by craft type and by cultural region
 - **Search Nearby** – click the map (or use your location) and pick a radius (1–10 km)
 - **Find Nearest** – the closest maker to a chosen point
@@ -95,7 +96,7 @@ More: [containers](docs/screenshots/A19-docker-containers.png) ·
 | Middle tier | Python 3.12, **Django 5.2** + GeoDjango, Django REST Framework, djangorestframework-gis, django-filter, drf-spectacular (OpenAPI) |
 | App server | **Gunicorn** (3 workers) |
 | Reverse proxy | **Nginx 1.27** (static files, security headers, gzip) |
-| Front end | **Leaflet 1.9.4**, **Bootstrap 5.3**, vanilla JavaScript (Fetch API), Django templates |
+| Front end | **Leaflet 1.9.4** + **Leaflet.markercluster 1.5.3**, **Bootstrap 5.3**, vanilla JavaScript (Fetch API), Django templates |
 | Map tiles | **OpenStreetMap** |
 | Geocoding | OpenStreetMap **Nominatim** (address → coordinates in the Add Artisan form) |
 | Deployment | **Docker Compose** – 4 containers on an isolated bridge network |
@@ -473,7 +474,7 @@ heritageconnect/
 ## Acknowledgements & attribution
 
 - Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors; geocoding by Nominatim
-- [Leaflet](https://leafletjs.com/), [Bootstrap](https://getbootstrap.com/),
+- [Leaflet](https://leafletjs.com/), [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster), [Bootstrap](https://getbootstrap.com/),
   [Django](https://www.djangoproject.com/), [Django REST Framework](https://www.django-rest-framework.org/),
   [djangorestframework-gis](https://github.com/openwisp/django-rest-framework-gis),
   [drf-spectacular](https://drf-spectacular.readthedocs.io/), [PostGIS](https://postgis.net/),

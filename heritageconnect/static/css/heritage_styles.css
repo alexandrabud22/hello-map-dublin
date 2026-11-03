@@ -6,8 +6,10 @@
     --text: #2e2a26;
     --muted: #756e66;
 
-    --accent: #b85f36;
-    --accent-dark: #944624;
+    /* #a2512e meets WCAG AA contrast (4.5:1) for text on the cream
+       background and for white text on accent buttons. */
+    --accent: #a2512e;
+    --accent-dark: #7d3a1d;
     --green: #70866c;
 
     --border: #e5ddd2;
@@ -622,7 +624,7 @@ body {
 }
 
 
-.result-item h6 {
+.result-item h3 {
     margin: 4px 0 7px;
 
     font-family: Georgia, serif;
@@ -661,7 +663,7 @@ body {
 }
 
 
-.leaflet-popup-content h5 {
+.leaflet-popup-content h3 {
     font-family: Georgia, serif;
 
     font-size: 18px;
@@ -1632,9 +1634,9 @@ body {
 }
 
 .route-buffer-btn {
-    border: 1px solid #b85f36;
+    border: 1px solid var(--accent);
     background: #fff;
-    color: #b85f36;
+    color: var(--accent);
     border-radius: 999px;
     padding: 4px 10px;
     font-size: 0.78rem;
@@ -1644,7 +1646,7 @@ body {
 
 .route-buffer-btn:hover,
 .route-buffer-btn:focus-visible {
-    background: #b85f36;
+    background: var(--accent);
     color: #fff;
     outline: none;
 }
@@ -1987,4 +1989,68 @@ textarea:focus-visible {
         display: none;
     }
 
+}
+
+
+/* =========================================================
+   TOUCH TARGETS (WCAG 2.5.8 - at least 24 x 24 px)
+========================================================= */
+
+.nav-auth-link,
+.legend-toggle,
+.layer-toggle,
+.edit-artisan-btn,
+.delete-artisan-btn,
+.route-buffer-btn,
+.nearest-action {
+    min-height: 24px;
+    min-width: 24px;
+}
+
+.nav-auth-link,
+.edit-artisan-btn,
+.delete-artisan-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 6px;
+}
+
+.legend-toggle,
+.layer-toggle {
+    display: flex;
+    align-items: center;
+}
+
+.result-actions {
+    gap: 4px;
+}
+
+
+/* =========================================================
+   MARKER CLUSTERS (Leaflet.markercluster) - themed colours
+========================================================= */
+
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+    background-color: rgba(162, 81, 46, 0.25);
+}
+
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+    background-color: var(--accent);
+    color: #fff;
+    font-weight: 700;
+}
+
+
+/* Selected artisan card (after clicking it in the list) */
+.result-item {
+    cursor: pointer;
+}
+
+.result-item.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent), var(--shadow);
 }

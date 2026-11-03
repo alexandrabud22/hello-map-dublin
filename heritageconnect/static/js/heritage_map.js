@@ -42,7 +42,20 @@ const currentUser = {
    MAP LAYERS
 ========================================================= */
 
-const artisanLayer = L.layerGroup().addTo(map);
+// Artisan markers are clustered (Leaflet.markercluster): pins that are
+// close together merge into a numbered circle and split apart when the
+// user zooms in. This keeps markers readable and easy to tap.
+const artisanLayer = (
+    typeof L.markerClusterGroup === "function"
+        ? L.markerClusterGroup({
+            showCoverageOnHover: false,
+            maxClusterRadius: 45,
+            spiderfyOnMaxZoom: true,
+            // From street level (zoom 16+) every marker is shown on its own.
+            disableClusteringAtZoom: 16,
+        })
+        : L.layerGroup() // fallback if the plugin fails to load
+).addTo(map);
 const regionLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 
@@ -297,7 +310,7 @@ function createArtisanPopup(feature) {
         feature.properties;
 
     return `
-        <h5>${escapeHtml(properties.name)}</h5>
+        <h3>${escapeHtml(properties.name)}</h3>
 
         <p>
             <strong>Artisan:</strong>
@@ -445,9 +458,9 @@ function updateResults(features) {
                 }
             </div>
 
-            <h6>
+            <h3>
                 ${escapeHtml(properties.name)}
-            </h6>
+            </h3>
 
             <p class="artisan-name">
                 ${escapeHtml(properties.artisan_name)}
@@ -517,13 +530,21 @@ function updateResults(features) {
                 const coordinates =
                     feature.geometry.coordinates;
 
-                map.setView(
-                    [
-                        coordinates[1],
-                        coordinates[0]
-                    ],
-                    16
-                );
+                // Highlight the chosen card.
+                resultsContainer
+                    .querySelectorAll(".result-item.selected")
+                    .forEach((item) => item.classList.remove("selected"));
+                result.classList.add("selected");
+
+                // If the map is (partly) off-screen - e.g. after scrolling
+                // down the list - scroll back up so the user sees it.
+                const mapCard = document.getElementById("explore");
+                const mapBox = mapCard.getBoundingClientRect();
+                const headerHeight = 80;
+
+                if (mapBox.top < headerHeight || mapBox.bottom > window.innerHeight) {
+                    mapCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
 
                 const markerObject =
                     artisanMarkers.find(
@@ -532,13 +553,51 @@ function updateResults(features) {
                             feature.id
                     );
 
-                if (markerObject) {
-                    markerObject
-                        .marker
-                        .openPopup();
+                if (!markerObject) {
+                    map.setView([coordinates[1], coordinates[0]], 16);
+                    return;
+                }
+
+                const marker = markerObject.marker;
+
+                // Make sure the artisan layer is visible.
+                if (!map.hasLayer(artisanLayer)) {
+                    map.addLayer(artisanLayer);
+                    if (toggleArtisans) {
+                        toggleArtisans.checked = true;
+                    }
+                }
+
+                // Zoom to street level (clustering is off from zoom 16), then
+                // open the popup once the map has stopped moving - but only
+                // if the marker is still on the map (the list may have been
+                // filtered in the meantime).
+                const latLng = marker.getLatLng();
+                const openIfStillShown = () => {
+                    if (artisanLayer.hasLayer(marker)) {
+                        marker.openPopup();
+                    }
+                };
+
+                map.stop();
+
+                if (map.getZoom() >= 16 && map.getBounds().contains(latLng)) {
+                    openIfStillShown();
+                } else {
+                    map.once("moveend", openIfStillShown);
+                    map.setView(latLng, 17);
                 }
             }
         );
+
+        // Keyboard users: Tab to a card, press Enter to show it on the map.
+        result.tabIndex = 0;
+        result.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && event.target === result) {
+                event.preventDefault();
+                result.click();
+            }
+        });
 
         resultsContainer.appendChild(
             result
@@ -611,9 +670,9 @@ async function loadRegions() {
                         layer
                     ) {
                         layer.bindPopup(`
-                            <h5>
+                            <h3>
                                 ${escapeHtml(feature.properties.name)}
-                            </h5>
+                            </h3>
 
                             <p>
                                 ${escapeHtml(feature.properties.region_type)}
@@ -677,9 +736,9 @@ async function loadRoutes() {
                         routeLayersById[feature.id] = layer;
 
                         layer.bindPopup(`
-                            <h5>
+                            <h3>
                                 ${escapeHtml(feature.properties.name)}
-                            </h5>
+                            </h3>
 
                             <p>
                                 ${escapeHtml(feature.properties.route_type_display)}
