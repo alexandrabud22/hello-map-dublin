@@ -58,6 +58,8 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 
 **Responsive & accessible**
 - Works on desktop, tablet and phone (mobile menu, collapsible map legend, no overlapping controls)
+- **Lighthouse accessibility score 100** (desktop): WCAG AA colour contrast, correct heading
+  order, 24 px touch targets
 - Labelled form fields, screen-reader status messages (`aria-live`), visible keyboard focus
 - Add/Edit dialog with `role="dialog"`, focus moved into the dialog, Tab kept inside it,
   Escape to close, and focus returned to the button that opened it
@@ -80,7 +82,12 @@ Built for **CMPU4058 Advanced Web Mapping – Assignment 1 (Location-Based Servi
 |---|---|
 | ![Docker network](docs/screenshots/A18-docker-network-subnet.png) | ![Tests](docs/screenshots/A17-api-tests-passing.png) |
 
+| Accessibility (Lighthouse) | Data persists after restart |
+|---|---|
+| ![Lighthouse 100](docs/screenshots/A30-lighthouse-accessibility.png) | ![Persistence](docs/screenshots/A28-data-persists-after-restart.png) |
+
 More: [containers](docs/screenshots/A19-docker-containers.png) ·
+[spatial index query plans](docs/screenshots/A29-spatial-index-query-plans.png) ·
 [Nginx security headers](docs/screenshots/A20-nginx-security-headers.png) ·
 [Swagger API docs](docs/screenshots/A25-swagger-api-docs.png) ·
 [Buffer query in Swagger](docs/screenshots/A26-swagger-buffer-query.png) ·
@@ -178,6 +185,7 @@ calculated by projecting the line to **EPSG:2157 (Irish Transverse Mercator)**.
   ```bash
   docker compose exec web python manage.py explain_spatial_queries
   ```
+  ([example output](docs/screenshots/A29-spatial-index-query-plans.png))
   (With only ~15 rows PostgreSQL normally prefers a full table scan, so this command switches
   sequential scans off for its own connection to show how the indexes are used at scale.)
 
